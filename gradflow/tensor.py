@@ -8,7 +8,7 @@ from .autograd import *
 
 # Based on https://www.youtube.com/watch?v=MswxJw-8PvE
 class Tensor:
-  def __init__(self, data: ArrayLike, requires_grad: bool = True, is_leaf: bool = True):
+  def __init__(self, data: ArrayLike, requires_grad: bool = False, is_leaf: bool = True):
     self.data: np.ndarray = np.array(data, dtype=np.float32)
     self.grad: Optional[np.ndarray] = None
     self._grad_fn: AutogradFunction = Accumulate(self) if requires_grad else NoneFn()
@@ -92,7 +92,7 @@ class Tensor:
 
     return out
 
-  def sum(self) -> Tensor:
+  def sum(self) -> Tensor: # TODO: dim
     requires_grad = self.requires_grad
     is_leaf = not requires_grad
 
@@ -101,12 +101,31 @@ class Tensor:
 
     return out
 
-  def mean(self) -> Tensor:
+  def mean(self) -> Tensor: # TODO: dim
     requires_grad = self.requires_grad
     is_leaf = not requires_grad
 
     out = Tensor(self.data.mean(), requires_grad, is_leaf)
     out.grad_fn = MeanBackward(self.data.size, [self], [self.grad_fn])
+
+    return out
+  
+  def exp(self) -> Tensor:
+    requires_grad = self.requires_grad
+    is_leaf = not requires_grad
+
+    out = Tensor(np.exp(self.data), requires_grad, is_leaf)
+    out.grad_fn = ExpBackward([self], [self.grad_fn])
+
+    return out
+  
+  def __pow__(self, rhs: float) -> Tensor:
+    assert(isinstance(rhs, float))
+    requires_grad = self.requires_grad
+    is_leaf = not requires_grad
+
+    out = Tensor(np.power(self.data, rhs), requires_grad, is_leaf)
+    out.grad_fn = PowBackward([self, rhs], [self.grad_fn])
 
     return out
 
@@ -124,6 +143,12 @@ class Tensor:
 
   def __rmul__(self, lhs: Union[ArrayLike, Tensor]) -> Tensor:
     return self * lhs
+  
+  def __truediv__(self, rhs: Union[ArrayLike, Tensor]) -> Tensor:
+    return self * rhs ** -1.0
+
+  def __rtruediv__(self, lhs: Union[ArrayLike, Tensor]) -> Tensor:
+    return lhs * self ** -1.0
 
   def backward(self) -> None:
     if (self.data.shape != ()):

@@ -23,3 +23,8 @@ class ReLU(Function):
     out.grad_fn = ReLUBackward([x], [x.grad_fn])
   
     return out
+
+class Softmax(Function): # TODO: dim
+  def forward(self, x: Tensor):
+    # https://stackoverflow.com/a/34969389
+    return x.exp() / x.exp().sum()

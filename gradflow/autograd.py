@@ -75,6 +75,15 @@ class MeanBackward(BackwardFunction):
   def backward(self, grad: np.ndarray) -> None:
     self.next_functions[0](np.ones_like(self.ctx[0].data) * grad / self.n)
 
+class ExpBackward(BackwardFunction):
+  def backward(self, grad: np.ndarray) -> None:
+    self.next_functions[0](np.exp(self.ctx[0].data) * grad)
+
+class PowBackward(BackwardFunction):
+  # In this case, ctx[1] = rhs
+  def backward(self, grad: np.ndarray) -> None:
+    self.next_functions[0](self.ctx[1] * np.power(self.ctx[0].data, self.ctx[1] - 1) * grad)
+
 class ReLUBackward(BackwardFunction):
   def backward(self, grad: np.ndarray) -> None:
     self.next_functions[0]((self.ctx[0].data > 0) * grad)
