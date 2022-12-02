@@ -2,20 +2,20 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from typing import Any
+from typing import Any, Optional
 from .tensor import Tensor
 from .autograd import ReLUBackward
 
 class Function(ABC):
   @abstractmethod
-  def forward(self, *args: Any, **kwargs: Any) -> Any:
+  def forward(self, *args: Any, **kwargs: Any) -> Tensor:
     pass
 
-  def __call__(self, *args: Any, **kwargs: Any) -> Any:
+  def __call__(self, *args: Any, **kwargs: Any) -> Tensor:
     return self.forward(*args, **kwargs)
 
 class ReLU(Function):
-  def forward(self, x: Tensor):
+  def forward(self, x: Tensor) -> Tensor:
     requires_grad = x.requires_grad
     is_leaf = not requires_grad
 
@@ -24,7 +24,9 @@ class ReLU(Function):
   
     return out
 
-class Softmax(Function): # TODO: dim
-  def forward(self, x: Tensor):
-    # https://stackoverflow.com/a/34969389
-    return x.exp() / x.exp().sum()
+class Softmax(Function):
+  def __init__(self, dim: Optional[int] = None):
+    self.dim = dim
+
+  def forward(self, x: Tensor) -> Tensor:
+    return x.exp() / x.exp().sum(self.dim)

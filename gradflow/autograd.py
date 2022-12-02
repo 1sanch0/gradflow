@@ -67,14 +67,6 @@ class SumBackward(BackwardFunction):
   def backward(self, grad: np.ndarray) -> None:
     self.next_functions[0](np.ones_like(self.ctx[0].data) * grad)
 
-class MeanBackward(BackwardFunction):
-  def __init__(self, n: int, ctx: list[Tensor], next_functions: list[BackwardFunction]):
-    super().__init__(ctx, next_functions)
-    self.n = n
-
-  def backward(self, grad: np.ndarray) -> None:
-    self.next_functions[0](np.ones_like(self.ctx[0].data) * grad / self.n)
-
 class ExpBackward(BackwardFunction):
   def backward(self, grad: np.ndarray) -> None:
     self.next_functions[0](np.exp(self.ctx[0].data) * grad)

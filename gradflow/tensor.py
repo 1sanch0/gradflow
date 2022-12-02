@@ -92,23 +92,17 @@ class Tensor:
 
     return out
 
-  def sum(self) -> Tensor: # TODO: dim
+  def sum(self, dim: Optional[int] = None) -> Tensor:
     requires_grad = self.requires_grad
     is_leaf = not requires_grad
 
-    out = Tensor(self.data.sum(), requires_grad, is_leaf)
+    out = Tensor(self.data.sum(dim), requires_grad, is_leaf)
     out.grad_fn = SumBackward([self], [self.grad_fn])
 
     return out
 
-  def mean(self) -> Tensor: # TODO: dim
-    requires_grad = self.requires_grad
-    is_leaf = not requires_grad
-
-    out = Tensor(self.data.mean(), requires_grad, is_leaf)
-    out.grad_fn = MeanBackward(self.data.size, [self], [self.grad_fn])
-
-    return out
+  def mean(self, dim: Optional[int] = None) -> Tensor:
+    return self.sum(dim) / self.data.size
   
   def exp(self) -> Tensor:
     requires_grad = self.requires_grad
@@ -167,4 +161,3 @@ class Tensor:
 
     out += ")"
     return out
-
