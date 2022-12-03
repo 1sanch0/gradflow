@@ -37,11 +37,17 @@ class Tensor:
 
   @requires_grad.setter
   def requires_grad(self, requires_grad: bool) -> None:
+    if (not self.is_leaf):
+      raise RuntimeError("RuntimeError: you can only change requires_grad of leaf variables.")
+    
     if self.requires_grad == requires_grad:
       return None
 
     self._grad_fn = Accumulate(self) if requires_grad else NoneFn()
     self._requires_grad = requires_grad
+  
+  def detach(self) -> Tensor:
+    return Tensor(self.data, requires_grad=False, is_leaf=True)
 
   def __add__(self, rhs: Union[ArrayLike, Tensor]) -> Tensor:
     rhs = rhs if isinstance(rhs, Tensor) else Tensor(rhs, False, False)
@@ -112,9 +118,19 @@ class Tensor:
     out.grad_fn = ExpBackward([self], [self.grad_fn])
 
     return out
+
+  def log(self) -> Tensor:
+    ''' Natural logarithm (base e) '''
+    requires_grad = self.requires_grad
+    is_leaf = not requires_grad
+
+    out = Tensor(np.log(self.data), requires_grad, is_leaf)
+    out.grad_fn = LogBackward([self], [self.grad_fn])
+
+    return out
   
   def __pow__(self, rhs: float) -> Tensor:
-    assert(isinstance(rhs, float))
+    assert(isinstance(rhs, (int, float)))
     requires_grad = self.requires_grad
     is_leaf = not requires_grad
 

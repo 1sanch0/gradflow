@@ -14,6 +14,12 @@ class Function(ABC):
   def __call__(self, *args: Any, **kwargs: Any) -> Tensor:
     return self.forward(*args, **kwargs)
 
+# Activation Functions:
+
+class Sigmoid(Function):
+  def forward(self, x: Tensor) -> Tensor:
+    return 1 / (1 + (-x).exp())
+
 class ReLU(Function):
   def forward(self, x: Tensor) -> Tensor:
     requires_grad = x.requires_grad
@@ -30,3 +36,13 @@ class Softmax(Function):
 
   def forward(self, x: Tensor) -> Tensor:
     return x.exp() / x.exp().sum(self.dim)
+
+class Tanh(Function):
+  def forward(self, x: Tensor) -> Tensor:
+    return (x.exp() - (-x).exp()) / (x.exp() + (-x).exp())
+
+# Loss functions
+
+class MSELoss(Function):
+  def forward(self, input: Tensor, target: Tensor) -> Tensor:
+    return ((target - input) ** 2).mean()

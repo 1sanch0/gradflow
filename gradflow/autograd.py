@@ -51,10 +51,6 @@ class MulBackward(BackwardFunction):
     self.next_functions[1](self.ctx[0].data * grad)
 
 class MatmulBackward(BackwardFunction):
-  # Binary op: a (op) b
-  # ctx[0] = a, ctx[1] = b
-  # next_function[0] = a.grad_fn
-  # next_function[1] = b.grad_fn
   def backward(self, grad: np.ndarray) -> None:
     self.next_functions[0](grad @ self.ctx[1].data.T)
     self.next_functions[1](self.ctx[0].data.T @ grad)
@@ -70,6 +66,10 @@ class SumBackward(BackwardFunction):
 class ExpBackward(BackwardFunction):
   def backward(self, grad: np.ndarray) -> None:
     self.next_functions[0](np.exp(self.ctx[0].data) * grad)
+
+class LogBackward(BackwardFunction):
+  def backward(self, grad: np.ndarray) -> None:
+    self.next_functions[0]((1 / self.ctx[0].data) * grad)
 
 class PowBackward(BackwardFunction):
   # In this case, ctx[1] = rhs
