@@ -38,8 +38,15 @@ class NoneFn(AutogradFunction):
 
 class AddBackward(BackwardFunction):
   def backward(self, grad: np.ndarray) -> None:
-    self.next_functions[0](grad)
-    self.next_functions[1](grad)
+    # Unbroadcasting: TODO: idk if its ok
+    grad0, grad1 = grad, grad
+    if (grad.shape != self.ctx[0].shape):
+      grad0 = grad0.sum(axis=0)
+    if (grad.shape != self.ctx[1].shape):
+      grad1 = grad1.sum(axis=0)
+
+    self.next_functions[0](grad0)
+    self.next_functions[1](grad1)
 
 class MulBackward(BackwardFunction):
   # Binary op: a (op) b
@@ -47,6 +54,7 @@ class MulBackward(BackwardFunction):
   # next_function[0] = a.grad_fn
   # next_function[1] = b.grad_fn
   def backward(self, grad: np.ndarray) -> None:
+    # TODO: is broadcasting done here too??
     self.next_functions[0](self.ctx[1].data * grad)
     self.next_functions[1](self.ctx[0].data * grad)
 
