@@ -5,7 +5,7 @@ with open("README.md", "r") as f:
 
 setup(name="gradflow",
       version="0.0.1",
-      description="Simple neural network framework inspired by pytorch.",
+      description="Simple and lightweight neural network with a PyTorch-like API.",
       author="Javier Sancho",
       license="MIT",
       long_description=long_description,

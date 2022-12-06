@@ -16,6 +16,11 @@ class Function(ABC):
   def __call__(self, *args: Any, **kwargs: Any) -> Tensor:
     return self.forward(*args, **kwargs)
 
+class ParameterizedFunction(Function):
+  @abstractmethod
+  def parameters(self) -> list[Tensor]:
+    pass
+
 # Activation Functions:
 
 class Sigmoid(Function):
@@ -58,7 +63,16 @@ class BCELoss(Function):
 
 # Layers
 
-class Linear(Function):
+class Dropout(Function):
+  # Should be applied ONLY during training
+  def __init__(self, p: float = 0.5):
+    self.p = p
+
+  def forward(self, x: Tensor) -> Tensor:
+    mask = (np.random.randn(*x.shape) < self.p) / self.p
+    return x * mask
+
+class Linear(ParameterizedFunction):
   def __init__(self, in_features: int, out_features: int, bias: bool = True):
     self._bias = bias
 
