@@ -1,3 +1,5 @@
+from .dataset import Dataset, download_from_url
+
 from gradflow import Tensor
 from pathlib import Path
 from tqdm import tqdm
@@ -13,21 +15,21 @@ TEST_IMGS    = "http://yann.lecun.com/exdb/mnist/t10k-images-idx3-ubyte.gz"
 TEST_LABELS  = "http://yann.lecun.com/exdb/mnist/t10k-labels-idx1-ubyte.gz"
 URLS = [TRAIN_IMGS, TEST_IMGS, TRAIN_LABELS, TEST_LABELS]
 
-def download(path: str, chunk_size: int = 8192) -> None:
-  path = Path(path)
-  path.mkdir(parents=True, exist_ok=True)
+# def download(path: str, chunk_size: int = 8192) -> None:
+#   path = Path(path)
+#   path.mkdir(parents=True, exist_ok=True)
   
-  for url in URLS:
-    filename = url.split("/")[-1]
+#   for url in URLS:
+#     filename = url.split("/")[-1]
 
-    if (path / filename).exists():
-      print(f"{filename} already exists in {path}. Skipping...")
-      continue
+#     if (path / filename).exists():
+#       print(f"{filename} already exists in {path}. Skipping...")
+#       continue
 
-    response = requests.get(url, stream=True)
-    with open(path / filename, "wb") as f:
-      for chunk in tqdm(response.iter_content(chunk_size=chunk_size)):
-        f.write(chunk)
+#     response = requests.get(url, stream=True)
+#     with open(path / filename, "wb") as f:
+#       for chunk in tqdm(response.iter_content(chunk_size=chunk_size)):
+#         f.write(chunk)
 
 def load(path: str, url: str) -> np.ndarray:
   path = Path(path)
@@ -39,9 +41,9 @@ def load(path: str, url: str) -> np.ndarray:
     return np.frombuffer(f.read(), offset=offset, dtype=np.uint8).astype(np.uint8)
 
 
-class MNISTDataset:
+class MNISTDataset(Dataset):
   def __init__(self, path: str, batch_size: int = 32, train: bool = True, flatten: bool = True):
-    download(path)
+    download_from_url(path, URLS)
 
     if train:
       imgs   = load(path, TRAIN_IMGS)
@@ -74,6 +76,3 @@ class MNISTDataset:
   def __len__(self) -> int:
     return len(self.labels)  
   
-
-
-
