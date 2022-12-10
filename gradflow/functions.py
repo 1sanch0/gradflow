@@ -47,6 +47,14 @@ class Softmax(Function):
     x = x - np.max(x.data) 
     return x.exp() / x.exp().sum(self.dim)
 
+class LogSoftmax(Function):
+  def __init__(self, dim: Optional[int] = None):
+    self.dim = dim
+  
+  def forward(self, x: Tensor) -> Tensor:
+    x = x - np.max(x.data) 
+    return x - x.exp().sum(self.dim).log().unsqueeze(-1)
+
 class Tanh(Function):
   def forward(self, x: Tensor) -> Tensor:
     return (x.exp() - (-x).exp()) / (x.exp() + (-x).exp())
@@ -60,6 +68,27 @@ class MSELoss(Function):
 class BCELoss(Function):
   def forward(self, input: Tensor, target: Tensor) -> Tensor:
     return (-(target * input.log() + (1 - target) * (1 - input).log())).mean() #.sum()
+
+class NLLLoss(Function):
+  # The negative log likelihood loss
+  # https://en.wikipedia.org/wiki/Likelihood_function
+  def __init__(self, indexed: bool = True):
+    """
+    `indexed=True` means the target is an array of indices of shape (bs,) e.g [0, 1, 5, 2, ...] 0 <= i < C
+    `indexed=False` means the target is an array of distributions of shape (bs, C) e.g [[1,0,0,...],[0,1,0,...],...]
+    """
+    self.indexed = indexed
+
+  def forward(self, input: Tensor, target: Tensor) -> Tensor:
+    if self.indexed:
+      assert(input.shape != target.shape)
+      # TODO: review
+      target_mat = np.eye(input.shape[1])[target.data]
+      target = Tensor(target_mat, requires_grad=False)
+      print("input:", input.shape)
+      print("Target mat:", target_mat.shape)
+
+    return -(input * target).sum() / input.shape[0]
 
 # Layers
 

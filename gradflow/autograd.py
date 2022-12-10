@@ -2,11 +2,20 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from typing import TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 if TYPE_CHECKING:
   from .tensor import Tensor
 
 import numpy as np
+
+# Binary ops: a (op) b
+# ctx[0] = a, ctx[1] = b
+# next_function[0] = a.grad_fn
+# next_function[1] = b.grad_fn
+
+# Unary ops: a.(op)
+# ctx[0] = a
+# next_function[0] = a.grad_fn
 
 class AutogradFunction(ABC):
   @abstractmethod
@@ -36,27 +45,30 @@ class NoneFn(AutogradFunction):
   def backward(self, grad: np.ndarray) -> None:
     pass
 
+def unbroadcast(x: Tensor, shape: tuple[int]) -> Tensor:
+  # This only works for 2d matrices. Feel free to pull request
+  if (x.shape == shape): return x
+  if (shape == (1,) or shape == ()):
+    expanded_dim = None 
+  else:
+    expanded_dim = np.argmax(
+      0 != (np.array(shape) - np.array(np.broadcast_shapes(shape, x.shape)))
+    )
+
+  # Again, feel free to pull request to fix this.
+  keepdims = expanded_dim == 1
+  
+  return x.sum(expanded_dim, keepdims=keepdims)
+
 class AddBackward(BackwardFunction):
   def backward(self, grad: np.ndarray) -> None:
-    # Unbroadcasting: TODO: idk if its ok
-    grad0, grad1 = grad, grad
-    if (grad.shape != self.ctx[0].shape):
-      grad0 = grad0.sum(axis=0)
-    if (grad.shape != self.ctx[1].shape):
-      grad1 = grad1.sum(axis=0)
-
-    self.next_functions[0](grad0)
-    self.next_functions[1](grad1)
+    self.next_functions[0](unbroadcast(grad, self.ctx[0].shape))
+    self.next_functions[1](unbroadcast(grad, self.ctx[1].shape))
 
 class MulBackward(BackwardFunction):
-  # Binary op: a (op) b
-  # ctx[0] = a, ctx[1] = b
-  # next_function[0] = a.grad_fn
-  # next_function[1] = b.grad_fn
   def backward(self, grad: np.ndarray) -> None:
-    # TODO: is broadcasting done here too??
-    self.next_functions[0](self.ctx[1].data * grad)
-    self.next_functions[1](self.ctx[0].data * grad)
+    self.next_functions[0](unbroadcast(self.ctx[1].data * grad, self.ctx[0].shape))
+    self.next_functions[1](unbroadcast(self.ctx[0].data * grad, self.ctx[1].shape))
 
 class MatmulBackward(BackwardFunction):
   def backward(self, grad: np.ndarray) -> None:
@@ -68,7 +80,12 @@ class TransposeBackward(BackwardFunction):
     self.next_functions[0](grad.transpose())
 
 class SumBackward(BackwardFunction):
+  def __init__(self, ctx: list[Tensor], next_functions: list[BackwardFunction], dim: Optional[int] = None):
+    super().__init__(ctx, next_functions)
+    self.dim = dim
+
   def backward(self, grad: np.ndarray) -> None:
+    if self.dim: grad = np.expand_dims(grad, self.dim)
     self.next_functions[0](np.ones_like(self.ctx[0].data) * grad)
 
 class ExpBackward(BackwardFunction):
@@ -77,7 +94,7 @@ class ExpBackward(BackwardFunction):
 
 class LogBackward(BackwardFunction):
   def backward(self, grad: np.ndarray) -> None:
-    self.next_functions[0]((1 / self.ctx[0].data) * grad)
+    self.next_functions[0](grad / self.ctx[0].data)
 
 class PowBackward(BackwardFunction):
   # In this case, ctx[1] = rhs
@@ -87,3 +104,19 @@ class PowBackward(BackwardFunction):
 class ReLUBackward(BackwardFunction):
   def backward(self, grad: np.ndarray) -> None:
     self.next_functions[0]((self.ctx[0].data > 0) * grad)
+
+class UnsqueezeBackward(BackwardFunction):
+  def __init__(self, ctx: list[Tensor], next_functions: list[BackwardFunction], dim: int):
+    super().__init__(ctx, next_functions)
+    self.dim = dim
+
+  def backward(self, grad: np.ndarray) -> None:
+    self.next_functions[0](np.squeeze(grad, self.dim))
+
+class SqueezeBackward(BackwardFunction):
+  def __init__(self, ctx: list[Tensor], next_functions: list[BackwardFunction], dim: int):
+    super().__init__(ctx, next_functions)
+    self.dim = dim
+
+  def backward(self, grad: np.ndarray) -> None:
+    self.next_functions[0](np.expand_dims(grad, self.dim))

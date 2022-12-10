@@ -8,15 +8,15 @@ from .autograd import *
 
 # Based on https://www.youtube.com/watch?v=MswxJw-8PvE
 class Tensor:
-  def __init__(self, data: ArrayLike, requires_grad: bool = False, is_leaf: bool = True):
-    self.data: np.ndarray = np.array(data, dtype=np.float32)
+  def __init__(self, data: ArrayLike, requires_grad: bool = False, is_leaf: bool = True, dtype: np.dtype = np.float32):
+    self.data: np.ndarray = np.array(data, dtype=dtype)
     self.grad: Optional[np.ndarray] = None
     self._grad_fn: AutogradFunction = Accumulate(self) if requires_grad else NoneFn()
     self.is_leaf: bool = is_leaf
     self._requires_grad: bool = requires_grad
 
-  def astype(self, dtype: np.dtype) -> None:
-    self.data.astype(dtype)
+  # def astype(self, dtype: np.dtype) -> None:
+  #   self.data.astype(dtype)
   
   @property
   def shape(self) -> Tuple[int]:
@@ -103,7 +103,7 @@ class Tensor:
     is_leaf = not requires_grad
 
     out = Tensor(self.data.sum(dim), requires_grad, is_leaf)
-    out.grad_fn = SumBackward([self], [self.grad_fn])
+    out.grad_fn = SumBackward([self], [self.grad_fn], dim)
 
     return out
 
@@ -138,6 +138,26 @@ class Tensor:
     out.grad_fn = PowBackward([self, rhs], [self.grad_fn])
 
     return out
+  
+  def squeeze(self, dim: int) -> Tensor:
+    """Remove axes of length one from x."""
+    requires_grad = self.requires_grad
+    is_leaf = not requires_grad
+
+    out = Tensor(np.squeeze(self.data, dim), requires_grad, is_leaf)
+    out.grad_fn = SqueezeBackward([self], [self.grad_fn], dim)
+
+    return out
+
+  def unsqueeze(self, dim: int) -> Tensor:
+    """Expand the shape of an array."""
+    requires_grad = self.requires_grad
+    is_leaf = not requires_grad
+
+    out = Tensor(np.expand_dims(self.data, dim), requires_grad, is_leaf)
+    out.grad_fn = UnsqueezeBackward([self], [self.grad_fn], dim)
+
+    return out
 
   def __neg__(self) -> Tensor:
     return self * -1
@@ -163,7 +183,7 @@ class Tensor:
   def backward(self) -> None:
     if (self.data.shape != ()):
       raise RuntimeError("grad can be implicitly created only for scalar outputs")
-    self.grad_fn(1)
+    self.grad_fn(np.ones_like(self.data))
 
   def __repr__(self) -> str:
     grad_fn_name = self.grad_fn.__class__.__name__
