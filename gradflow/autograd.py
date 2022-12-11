@@ -26,7 +26,7 @@ class AutogradFunction(ABC):
     self.backward(grad)
 
 class BackwardFunction(AutogradFunction):
-  def __init__(self, ctx: list[Tensor], next_functions: list[BackwardFunction]): 
+  def __init__(self, ctx: list[Tensor], next_functions: list[AutogradFunction]): 
     self.ctx = ctx
     self.next_functions = next_functions
 
@@ -80,7 +80,7 @@ class TransposeBackward(BackwardFunction):
     self.next_functions[0](grad.transpose())
 
 class SumBackward(BackwardFunction):
-  def __init__(self, ctx: list[Tensor], next_functions: list[BackwardFunction], dim: Optional[int] = None):
+  def __init__(self, ctx: list[Tensor], next_functions: list[AutogradFunction], dim: Optional[int] = None):
     super().__init__(ctx, next_functions)
     self.dim = dim
 
@@ -106,7 +106,7 @@ class ReLUBackward(BackwardFunction):
     self.next_functions[0]((self.ctx[0].data > 0) * grad)
 
 class UnsqueezeBackward(BackwardFunction):
-  def __init__(self, ctx: list[Tensor], next_functions: list[BackwardFunction], dim: int):
+  def __init__(self, ctx: list[Tensor], next_functions: list[AutogradFunction], dim: int):
     super().__init__(ctx, next_functions)
     self.dim = dim
 
@@ -114,7 +114,7 @@ class UnsqueezeBackward(BackwardFunction):
     self.next_functions[0](np.squeeze(grad, self.dim))
 
 class SqueezeBackward(BackwardFunction):
-  def __init__(self, ctx: list[Tensor], next_functions: list[BackwardFunction], dim: int):
+  def __init__(self, ctx: list[Tensor], next_functions: list[AutogradFunction], dim: int):
     super().__init__(ctx, next_functions)
     self.dim = dim
 

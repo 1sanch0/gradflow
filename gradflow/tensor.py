@@ -8,11 +8,10 @@ from .autograd import *
 
 # Based on https://www.youtube.com/watch?v=MswxJw-8PvE
 class Tensor:
-  def __init__(self, data: ArrayLike, requires_grad: bool = False, is_leaf: bool = True, dtype: np.dtype = np.float32):
+  def __init__(self, data: ArrayLike, requires_grad: bool = False, dtype: np.dtype = np.float32):
     self.data: np.ndarray = np.array(data, dtype=dtype)
     self.grad: Optional[np.ndarray] = None
     self._grad_fn: AutogradFunction = Accumulate(self) if requires_grad else NoneFn()
-    self.is_leaf: bool = is_leaf
     self._requires_grad: bool = requires_grad
 
   # def astype(self, dtype: np.dtype) -> None:
@@ -30,6 +29,13 @@ class Tensor:
   def grad_fn(self, fn: AutogradFunction) -> None:
     if self.requires_grad:
       self._grad_fn = fn
+  
+  @property
+  def is_leaf(self) -> bool:
+    if (not self.requires_grad): return True
+    if (isinstance(self.grad_fn, Accumulate) or isinstance(self.grad_fn, NoneFn)):
+      return True
+    return False
 
   @property
   def requires_grad(self) -> bool:
@@ -38,7 +44,7 @@ class Tensor:
   @requires_grad.setter
   def requires_grad(self, requires_grad: bool) -> None:
     if (not self.is_leaf):
-      raise RuntimeError("RuntimeError: you can only change requires_grad of leaf variables.")
+      raise RuntimeError("you can only change requires_grad of leaf variables.")
     
     if self.requires_grad == requires_grad:
       return None
@@ -47,62 +53,48 @@ class Tensor:
     self._requires_grad = requires_grad
   
   def detach(self) -> Tensor:
-    return Tensor(self.data, requires_grad=False, is_leaf=True)
+    return Tensor(self.data, requires_grad=False)
 
   def __add__(self, rhs: Union[ArrayLike, Tensor]) -> Tensor:
-    rhs = rhs if isinstance(rhs, Tensor) else Tensor(rhs, False, False)
-    requires_grad = self.requires_grad | rhs.requires_grad
-    is_leaf = not requires_grad
+    rhs = rhs if isinstance(rhs, Tensor) else Tensor(rhs, False)
 
-    out = Tensor(self.data + rhs.data, requires_grad, is_leaf)
+    out = Tensor(self.data + rhs.data, self.requires_grad | rhs.requires_grad)
     out.grad_fn = AddBackward([self, rhs], [self.grad_fn, rhs.grad_fn])
 
     return out
 
   def __mul__(self, rhs: Union[ArrayLike, Tensor]) -> Tensor:
-    rhs = rhs if isinstance(rhs, Tensor) else Tensor(rhs, False, False)
-    requires_grad = self.requires_grad | rhs.requires_grad
-    is_leaf = not requires_grad
+    rhs = rhs if isinstance(rhs, Tensor) else Tensor(rhs, False)
 
-    out = Tensor(self.data * rhs.data, requires_grad, is_leaf)
+    out = Tensor(self.data * rhs.data, self.requires_grad | rhs.requires_grad)
     out.grad_fn = MulBackward([self, rhs], [self.grad_fn, rhs.grad_fn])
 
     return out
 
   def __matmul__(self, rhs: Union[ArrayLike, Tensor]) -> Tensor:
-    rhs = rhs if isinstance(rhs, Tensor) else Tensor(rhs, False, False)
-    requires_grad = self.requires_grad | rhs.requires_grad
-    is_leaf = not requires_grad
+    rhs = rhs if isinstance(rhs, Tensor) else Tensor(rhs, False)
 
-    out = Tensor(self.data @ rhs.data, requires_grad, is_leaf)
+    out = Tensor(self.data @ rhs.data, self.requires_grad | rhs.requires_grad)
     out.grad_fn = MatmulBackward([self, rhs], [self.grad_fn, rhs.grad_fn])
 
     return out
   
   def __rmatmul__(self, lhs: Union[ArrayLike, Tensor]) -> Tensor:
-    lhs = lhs if isinstance(lhs, Tensor) else Tensor(lhs, False, False)
-    requires_grad = self.requires_grad | lhs.requires_grad
-    is_leaf = not requires_grad
+    lhs = lhs if isinstance(lhs, Tensor) else Tensor(lhs, False)
 
-    out = Tensor(lhs.data @ self.data, requires_grad, is_leaf)
+    out = Tensor(lhs.data @ self.data, self.requires_grad | lhs.requires_grad)
     out.grad_fn = MatmulBackward([lhs, self], [lhs.grad_fn, self.grad_fn])
 
     return out
 
   def transpose(self) -> Tensor:
-    requires_grad = self.requires_grad
-    is_leaf = not requires_grad
-
-    out = Tensor(self.data.transpose(), requires_grad, is_leaf)
+    out = Tensor(self.data.transpose(), self.requires_grad)
     out.grad_fn = TransposeBackward([self], [self.grad_fn])
 
     return out
 
   def sum(self, dim: Optional[int] = None) -> Tensor:
-    requires_grad = self.requires_grad
-    is_leaf = not requires_grad
-
-    out = Tensor(self.data.sum(dim), requires_grad, is_leaf)
+    out = Tensor(self.data.sum(dim), self.requires_grad)
     out.grad_fn = SumBackward([self], [self.grad_fn], dim)
 
     return out
@@ -111,50 +103,38 @@ class Tensor:
     return self.sum(dim) / self.data.size
   
   def exp(self) -> Tensor:
-    requires_grad = self.requires_grad
-    is_leaf = not requires_grad
-
-    out = Tensor(np.exp(self.data), requires_grad, is_leaf)
+    out = Tensor(np.exp(self.data), self.requires_grad)
     out.grad_fn = ExpBackward([self], [self.grad_fn])
 
     return out
 
   def log(self) -> Tensor:
     ''' Natural logarithm (base e) '''
-    requires_grad = self.requires_grad
-    is_leaf = not requires_grad
-
-    out = Tensor(np.log(self.data), requires_grad, is_leaf)
+    out = Tensor(np.log(self.data), self.requires_grad)
     out.grad_fn = LogBackward([self], [self.grad_fn])
 
     return out
   
   def __pow__(self, rhs: float) -> Tensor:
     assert(isinstance(rhs, (int, float)))
-    requires_grad = self.requires_grad
-    is_leaf = not requires_grad
 
-    out = Tensor(np.power(self.data, rhs), requires_grad, is_leaf)
+    out = Tensor(np.power(self.data, rhs), self.requires_grad)
     out.grad_fn = PowBackward([self, rhs], [self.grad_fn])
 
     return out
   
   def squeeze(self, dim: int) -> Tensor:
     """Remove axes of length one from x."""
-    requires_grad = self.requires_grad
-    is_leaf = not requires_grad
 
-    out = Tensor(np.squeeze(self.data, dim), requires_grad, is_leaf)
+    out = Tensor(np.squeeze(self.data, dim), self.requires_grad)
     out.grad_fn = SqueezeBackward([self], [self.grad_fn], dim)
 
     return out
 
   def unsqueeze(self, dim: int) -> Tensor:
     """Expand the shape of an array."""
-    requires_grad = self.requires_grad
-    is_leaf = not requires_grad
 
-    out = Tensor(np.expand_dims(self.data, dim), requires_grad, is_leaf)
+    out = Tensor(np.expand_dims(self.data, dim), self.requires_grad)
     out.grad_fn = UnsqueezeBackward([self], [self.grad_fn], dim)
 
     return out

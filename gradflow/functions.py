@@ -29,10 +29,7 @@ class Sigmoid(Function):
 
 class ReLU(Function):
   def forward(self, x: Tensor) -> Tensor:
-    requires_grad = x.requires_grad
-    is_leaf = not requires_grad
-
-    out = Tensor(x.data * (x.data > 0), requires_grad, is_leaf)
+    out = Tensor(x.data * (x.data > 0), x.requires_grad)
     out.grad_fn = ReLUBackward([x], [x.grad_fn])
   
     return out

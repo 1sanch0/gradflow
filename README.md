@@ -31,7 +31,6 @@ h = Tensor(2.0, requires_grad=True)
 i = g / h
 j = i.log()
 k = j + h
-l = k * i
 m = k.exp()
 m.backward()
 print(m)      # 59.1124
