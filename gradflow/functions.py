@@ -82,8 +82,6 @@ class NLLLoss(Function):
       # TODO: review
       target_mat = np.eye(input.shape[1])[target.data]
       target = Tensor(target_mat, requires_grad=False)
-      print("input:", input.shape)
-      print("Target mat:", target_mat.shape)
 
     return -(input * target).sum() / input.shape[0]
 

@@ -2,9 +2,7 @@ from .dataset import Dataset, download_from_url
 
 from gradflow import Tensor
 from pathlib import Path
-from tqdm import tqdm
 import numpy as np
-import requests
 import gzip
 
 __all__ = ["MNISTDataset"]
@@ -14,22 +12,6 @@ TRAIN_LABELS = "http://yann.lecun.com/exdb/mnist/train-labels-idx1-ubyte.gz"
 TEST_IMGS    = "http://yann.lecun.com/exdb/mnist/t10k-images-idx3-ubyte.gz"
 TEST_LABELS  = "http://yann.lecun.com/exdb/mnist/t10k-labels-idx1-ubyte.gz"
 URLS = [TRAIN_IMGS, TEST_IMGS, TRAIN_LABELS, TEST_LABELS]
-
-# def download(path: str, chunk_size: int = 8192) -> None:
-#   path = Path(path)
-#   path.mkdir(parents=True, exist_ok=True)
-  
-#   for url in URLS:
-#     filename = url.split("/")[-1]
-
-#     if (path / filename).exists():
-#       print(f"{filename} already exists in {path}. Skipping...")
-#       continue
-
-#     response = requests.get(url, stream=True)
-#     with open(path / filename, "wb") as f:
-#       for chunk in tqdm(response.iter_content(chunk_size=chunk_size)):
-#         f.write(chunk)
 
 def load(path: str, url: str) -> np.ndarray:
   path = Path(path)
@@ -66,8 +48,6 @@ class MNISTDataset(Dataset):
     # print(np.mean(self.imgs, axis=2).shape)
     # print(np.mean(self.imgs, axis=3).shape)
     
-
-
     self.labels = np.eye(10)[labels].reshape(-1, batch_size, 10)
   
   def __getitem__(self, i: int):
