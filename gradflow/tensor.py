@@ -87,15 +87,32 @@ class Tensor:
 
     return out
 
-  def transpose(self) -> Tensor:
-    out = Tensor(self.data.transpose(), self.requires_grad)
-    out.grad_fn = TransposeBackward([self], [self.grad_fn])
+  def transpose(self, dim: Optional[tuple[int, ...]] = None) -> Tensor:
+    out = Tensor(self.data.transpose(dim), self.requires_grad)
+    out.grad_fn = TransposeBackward([dim], [self.grad_fn])
+
+    return out
+
+  def max(self, dim: Optional[tuple[int, ...]] = None) -> Tensor:
+    # print("max dims", dim)
+    print("max old shape", self.data.shape)
+    print("max old strides", self.data.strides)
+    ohio = self.data.max(dim)
+    print("fw max new shape", ohio.shape)
+    print("fw max new strides", ohio.strides)
+    print()
+    # self.data = self.data.astype(np.float64)
+    out = Tensor(self.data.max(dim), self.requires_grad)
+    out.grad_fn = MaxBackward([self.data, out.data, dim], [self.grad_fn])
 
     return out
 
   def sum(self, dim: Optional[int] = None) -> Tensor:
     out = Tensor(self.data.sum(dim), self.requires_grad)
     out.grad_fn = SumBackward([self], [self.grad_fn], dim)
+
+    print("fw sum shape", self.data.shape)
+    print("fw sum strides", self.data.strides)
 
     return out
 
@@ -138,6 +155,27 @@ class Tensor:
     out.grad_fn = UnsqueezeBackward([self], [self.grad_fn], dim)
 
     return out
+  
+  def reshape(self, *shape: int) -> Tensor:
+    out = Tensor(self.data.reshape(shape), self.requires_grad)
+    out.grad_fn = ReshapeBackward([self.data.shape], [self.grad_fn])
+
+    return out
+  
+  def as_strided(self, shape: tuple[int, ...], strides: tuple[int, ...]) -> Tensor:
+    """ This function has to be used with extreme care. """
+    print("fw strides Old shape", self.data.shape)
+    print("fw strides Old strides", self.data.strides)
+    # print("fw strides Old strides dtype", np.array(self.data.strides) // self.data.itemsize)
+    print("strides Old dtype", self.data.dtype)
+    print("fw strides New shape", shape)
+    print("fw strides New strides", strides)
+    # print("fw strides new strides dtype", np.array(strides) // self.data.itemsize)
+    print("")
+    out = Tensor(np.lib.stride_tricks.as_strided(self.data, shape, strides), self.requires_grad)
+    out.grad_fn = AsStridedBackward([self.data.shape, self.data.strides, self.data.dtype.itemsize], [self.grad_fn])
+
+    return out
 
   def __neg__(self) -> Tensor:
     return self * -1
@@ -175,5 +213,6 @@ class Tensor:
     if grad_fn_name:
       out += f", grad_fn=<{grad_fn_name}>"
 
+    out = out.replace("\n", "\n" + " " * len("Tensor("))
     out += ")"
     return out

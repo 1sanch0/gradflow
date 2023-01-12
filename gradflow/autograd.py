@@ -76,8 +76,29 @@ class MatmulBackward(BackwardFunction):
     self.next_functions[1](self.ctx[0].data.T @ grad)
 
 class TransposeBackward(BackwardFunction):
+  # ctx[0] = dim
   def backward(self, grad: np.ndarray) -> None:
-    self.next_functions[0](grad.transpose())
+    self.next_functions[0](grad.transpose(self.ctx[0]))
+
+class MaxBackward(BackwardFunction):
+  # ctx[0] = patches
+  # ctx[1] = maxes
+  # ctx[2] = dim
+  def backward(self, grad: np.ndarray) -> None:
+    indices = np.where(self.ctx[0] == np.expand_dims(self.ctx[1], self.ctx[2]))
+    # indices = np.where(self.ctx[0].data == self.ctx[1].data[:,:,:,:,None, None])
+    new_grad = np.zeros_like(self.ctx[0])
+    new_grad[indices] = grad.ravel()
+    print("bk max grad shape", grad.shape)
+    print("bk max grad strides", grad.strides)
+
+    print("===============")
+    print("bk max new_grad shape", new_grad.shape)
+    print("bk max new_grad strides", new_grad.strides)
+    print("===============")
+
+    print()
+    self.next_functions[0](new_grad)
 
 class SumBackward(BackwardFunction):
   def __init__(self, ctx: list[Tensor], next_functions: list[AutogradFunction], dim: Optional[int] = None):
@@ -86,6 +107,10 @@ class SumBackward(BackwardFunction):
 
   def backward(self, grad: np.ndarray) -> None:
     if self.dim: grad = np.expand_dims(grad, self.dim)
+    ohio = np.ones_like(self.ctx[0].data) * grad
+    print("bk grad shape", ohio.shape)
+    print("bk grad strides", ohio.strides)
+    print()
     self.next_functions[0](np.ones_like(self.ctx[0].data) * grad)
 
 class ExpBackward(BackwardFunction):
@@ -120,3 +145,24 @@ class SqueezeBackward(BackwardFunction):
 
   def backward(self, grad: np.ndarray) -> None:
     self.next_functions[0](np.expand_dims(grad, self.dim))
+
+class ReshapeBackward(BackwardFunction):
+  # ctx[0] = old shape
+  def backward(self, grad: np.ndarray) -> None:
+    self.next_functions[0](grad.reshape(self.ctx[0]))
+
+class AsStridedBackward(BackwardFunction):
+  #ctx[0] = old shape
+  #ctx[1] = old strides
+  #ctx[2] = old itemsize
+  def backward(self, grad: np.ndarray) -> None:
+    print("bk strides Old shape", self.ctx[0])
+    print("bk strides Old strides", self.ctx[1])
+    print("bk strides grad shape", grad.shape)
+    print("bk strides grad strides", grad.strides)
+    print("strides grad dtype", grad.dtype)
+    print()
+    # self.next_functions[0](np.lib.stride_tricks.as_strided(grad, self.ctx[0], self.ctx[1]))
+    # TODO: test difrnt sizes, dtypes, channels etc
+    strides = np.array(self.ctx[1]) * grad.dtype.itemsize // self.ctx[2]
+    self.next_functions[0](np.lib.stride_tricks.as_strided(grad, self.ctx[0], strides))
