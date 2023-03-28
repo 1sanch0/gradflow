@@ -106,6 +106,7 @@ class Adam(Optimizer):
     self.t = 1
 
   def step(self) -> None:
+    lr_t = self.lr * np.sqrt(1 - self.beta2 ** self.t) / (1 - self.beta1 ** self.t)
     for i, param in enumerate(self.parameters):
       grad = param.grad
       if self.weight_decay:
@@ -115,6 +116,6 @@ class Adam(Optimizer):
       mt = self.m[i] / (1 - self.beta1 ** self.t)
       self.v[i] = self.beta2 * self.v[i] + (1 - self.beta2) * (grad ** 2)
       vt = self.v[i] / (1 - self.beta2 ** self.t)
-      param.data += -self.lr * mt / (np.sqrt(vt) + self.eps)
+      param.data += -lr_t * mt / (np.sqrt(vt) + self.eps)
 
-      self.t+=1
+    self.t+=1
