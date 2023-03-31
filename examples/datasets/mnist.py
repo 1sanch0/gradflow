@@ -24,7 +24,13 @@ def load(path: str, url: str) -> np.ndarray:
 
 
 class MNISTDataset(Dataset):
-  def __init__(self, path: str, batch_size: int = 32, train: bool = True, flatten: bool = True):
+  def __init__(self, 
+               path: str,
+               batch_size: int = 32,
+               train: bool = True,
+               shuffle: bool = False,
+               flatten: bool = True):
+
     download_from_url(path, URLS)
 
     if train:
@@ -34,19 +40,18 @@ class MNISTDataset(Dataset):
       imgs   = load(path, TEST_IMGS)
       labels = load(path, TEST_LABELS)
     
+    if shuffle:
+      imgs = imgs.reshape(-1, 28*28)
+      p = np.random.permutation(len(imgs))
+      imgs = imgs[p]
+      labels = labels[p]
+    
     if flatten:
       imgs = imgs.reshape(-1, batch_size, 28*28) 
     else:
-      imgs = imgs.reshape(-1, batch_size, 28,28) 
+      imgs = imgs.reshape(-1, batch_size, 1, 28, 28) 
     
-    # Preprocessing
     self.imgs = imgs.astype(np.float32) / 255.0
-    # self.imgs -= np.mean(self.imgs, axis=0)
-    # self.imgs /= np.std(self.imgs, axis=0)
-    # print(np.mean(self.imgs, axis=0).shape)
-    # print(np.mean(self.imgs, axis=1).shape)
-    # print(np.mean(self.imgs, axis=2).shape)
-    # print(np.mean(self.imgs, axis=3).shape)
     
     self.labels = np.eye(10)[labels].reshape(-1, batch_size, 10)
   
