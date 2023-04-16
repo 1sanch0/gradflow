@@ -93,7 +93,7 @@ class Dropout(Function):
     self.p = p
 
   def forward(self, x: Tensor) -> Tensor:
-    mask = (np.random.randn(*x.shape) < self.p) / self.p
+    mask = (np.random.randn(*x.shape) < self.p) / (1-self.p)
     return x * mask
 
 class Linear(ParameterizedFunction):
@@ -118,8 +118,6 @@ class Linear(ParameterizedFunction):
     return out
 
 class Conv2d(ParameterizedFunction):
-  # https://leonardoaraujosantos.gitbook.io/artificial-inteligence/machine_learning/deep_learning/convolution_layer/making_faster
-  # TODO: Possible improvement: https://jott.live/markdown/as_strided
   def __init__(self, in_features: int, out_features: int, kernel_size: Union[tuple[int, int], int], stride: int = 1, padding: str = "valid", bias: bool = True):
     if isinstance(kernel_size, int):
       kernel_size = (kernel_size,)*2
@@ -145,7 +143,6 @@ class Conv2d(ParameterizedFunction):
     # TODO: padding
     bs, c, w, h = x.shape
     kw, kh = self.kernel_size
-    nb = x.data.dtype.itemsize
 
     if (c != self.in_features):
       raise ValueError("Weights expects input to have " + \
@@ -154,16 +151,18 @@ class Conv2d(ParameterizedFunction):
     new_w = (w - kw) // self.stride + 1
     new_h = (h - kh) // self.stride + 1
 
-    # im2col
-    patches = x.as_strided(
-      (bs, new_w, new_h, c, kw, kh),
-      (self.stride*w*h*nb, self.stride*h*nb, self.stride*nb, h*w*nb, w*nb, nb)
-    )
+    # Shout out https://jott.live/markdown/as_strided read this post to understand what
+    # this means:
+    s = (bs, self.out_features, new_w, new_h, self.in_features, kw, kh)
 
-    col_mat = patches.reshape(bs * new_h * new_w, self.in_features * kh * kw)
+    x_strided = x.as_strided(s, (c*w*h, 0, h*self.stride, self.stride, w*h, h, 1))
+    weight_strided = self.weight.as_strided(s, (0, self.in_features*kw*kh, 0, 0, kw*kh, kh, 1))
 
-    out = col_mat @ self.weight.reshape(self.out_features, self.in_features * kh * kw).transpose()
-    out = out.transpose().reshape(bs, self.out_features, new_h, new_w)
+    out = x_strided * weight_strided
+
+    # out.shape: (bs, out_features, new_w, new_h, in_features, kw, kh)
+    # should be: (bs, out_features, new_w, new_h)
+    out = out.sum((-3, -2, -1))
 
     if self._bias:
       out = out + self.bias.reshape(1, -1, 1, 1)
@@ -179,14 +178,14 @@ class MaxPool2d(Function):
     self.stride = stride
   
   def forward(self, x: Tensor) -> Tensor:
+    # TODO: padding
     bs, c, w, h = x.shape
     kw, kh = self.kernel_size
-    nb = x.data.dtype.itemsize
 
     new_w = (w - kw) // self.stride + 1
     new_h = (h - kh) // self.stride + 1
 
     patches = x.as_strided((bs, c, new_w, new_h, kw, kh),
-                           (c*w*h*nb, w*h*nb, self.stride*w*nb, self.stride*nb, w*nb, nb))
+                           (c*w*h, w*h, self.stride*h, self.stride, h, 1))
   
     return patches.max((-2, -1))

@@ -154,9 +154,10 @@ class Tensor:
   
   def as_strided(self, shape: tuple[int, ...], strides: tuple[int, ...]) -> Tensor:
     """ This function has to be used with extreme care. """
+    nb = self.data.dtype.itemsize
 
-    out = Tensor(np.lib.stride_tricks.as_strided(self.data, shape, strides), self.requires_grad)
-    out.grad_fn = AsStridedBackward([self.data.shape, self.data.strides, self.data.dtype.itemsize, shape, strides], [self.grad_fn])
+    out = Tensor(np.lib.stride_tricks.as_strided(self.data, shape, nb*np.array(strides)), self.requires_grad)
+    out.grad_fn = AsStridedBackward([self.data.shape, self.data.strides, shape, strides], [self.grad_fn])
 
     return out
 

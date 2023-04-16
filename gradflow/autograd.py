@@ -52,14 +52,14 @@ def unbroadcast(x: Tensor, shape: tuple[int]) -> Tensor:
     return x
 
   if (shape == (1,) or shape == ()):
-    expanded_dim = None 
-  else:
-    expanded_dim = np.argmax(
-      0 != (np.array(shape) - np.array(np.broadcast_shapes(shape, x.shape)))
-    )
+    return x.sum()
+
+  expanded_dim = np.argmax(
+    0 != (np.array(shape) - np.array(np.broadcast_shapes(shape, x.shape)))
+  )
 
   # Again, feel free to pull request to fix this.
-  keepdims = expanded_dim == 1
+  keepdims = expanded_dim == len(shape) - 1
   
   return x.sum(expanded_dim, keepdims=keepdims)
 
@@ -145,14 +145,13 @@ class ReshapeBackward(BackwardFunction):
 class AsStridedBackward(BackwardFunction):
   #ctx[0] = old shape
   #ctx[1] = old strides
-  #ctx[2] = old itemsize
-  #ctx[3] = input shape
-  #ctx[4] = input strides
+  #ctx[2] = input shape
+  #ctx[3] = input strides
   def backward(self, grad: np.ndarray) -> None:
     new_grad = np.zeros(self.ctx[0]).flatten()
     idx = np.arange(np.prod(self.ctx[0]))
     indices = np.lib.stride_tricks.as_strided(
-      idx, self.ctx[3], np.array(self.ctx[4])*(idx.dtype.itemsize // self.ctx[2])
+      idx, self.ctx[2], np.array(self.ctx[3]) * idx.dtype.itemsize
     )
     
     np.add.at(new_grad, indices.flatten(), grad.flatten())
