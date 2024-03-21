@@ -156,7 +156,9 @@ class Tensor:
     """ This function has to be used with extreme care. """
     nb = self.data.dtype.itemsize
 
-    out = Tensor(np.lib.stride_tricks.as_strided(self.data, shape, nb*np.array(strides)), self.requires_grad)
+    out = Tensor(
+      np.ascontiguousarray(np.lib.stride_tricks.as_strided(self.data, shape, nb*np.array(strides))) # TODO: benchmark
+    , self.requires_grad)
     out.grad_fn = AsStridedBackward([self.data.shape, self.data.strides, shape, strides], [self.grad_fn])
 
     return out
@@ -187,7 +189,7 @@ class Tensor:
       raise RuntimeError("grad can be implicitly created only for scalar outputs")
     self.grad_fn(np.ones_like(self.data))
 
-  def __repr__(self) -> str:
+  def __str__(self) -> str:
     grad_fn_name = self.grad_fn.__class__.__name__
     if grad_fn_name in ['Accumulate', 'NoneFn']:
       grad_fn_name = None
@@ -200,3 +202,6 @@ class Tensor:
     out = out.replace("\n", "\n" + " " * len("Tensor("))
     out += ")"
     return out
+  
+  def __repr__(self) -> str:
+    return str(self)

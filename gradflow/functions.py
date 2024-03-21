@@ -118,9 +118,12 @@ class Linear(ParameterizedFunction):
     return out
 
 class Conv2d(ParameterizedFunction):
-  def __init__(self, in_features: int, out_features: int, kernel_size: Union[tuple[int, int], int], stride: int = 1, padding: str = "valid", bias: bool = True):
+  def __init__(self, in_features: int, out_features: int, kernel_size: Union[tuple[int, int], int], stride: Union[tuple[int, int], int] = 1, padding: str = "valid", bias: bool = True):
     if isinstance(kernel_size, int):
       kernel_size = (kernel_size,)*2
+
+    if isinstance(stride, int):
+      stride = (stride,)*2
 
     self.in_features = in_features
     self.out_features = out_features
@@ -143,26 +146,26 @@ class Conv2d(ParameterizedFunction):
     # TODO: padding
     bs, c, w, h = x.shape
     kw, kh = self.kernel_size
+    sw, sh = self.stride
+
+    new_w = (w-kw) // sw + 1
+    new_h = (h-kh) // sh + 1
 
     if (c != self.in_features):
       raise ValueError("Weights expects input to have " + \
                       f"{self.in_features} channels but got {c} instead.")
 
-    new_w = (w - kw) // self.stride + 1
-    new_h = (h - kh) // self.stride + 1
+    # im2col, check out: https://leonardoaraujosantos.gitbook.io/artificial-inteligence/machine_learning/deep_learning/convolution_layer/making_faster
+    col =  x.as_strided((bs, c, kw, kh, new_w, new_h),
+                        (c*h*w, h*w, w, 1, w*sw, sh)) \
+                        .reshape(bs, c*kw*kh, new_w*new_h)
 
-    # Shout out https://jott.live/markdown/as_strided read this post to understand what
-    # this means:
-    s = (bs, self.out_features, new_w, new_h, self.in_features, kw, kh)
+    w = self.weight.reshape(self.in_features * kw * kh, self.out_features)#.transpose()
+    print(col.shape)
+    print(w.shape)
+    out = col @ w
 
-    x_strided = x.as_strided(s, (c*w*h, 0, h*self.stride, self.stride, w*h, h, 1))
-    weight_strided = self.weight.as_strided(s, (0, self.in_features*kw*kh, 0, 0, kw*kh, kh, 1))
-
-    out = x_strided * weight_strided
-
-    # out.shape: (bs, out_features, new_w, new_h, in_features, kw, kh)
-    # should be: (bs, out_features, new_w, new_h)
-    out = out.sum((-3, -2, -1))
+    out = out.reshape(bs, self.out_features, new_w, new_h)
 
     if self._bias:
       out = out + self.bias.reshape(1, -1, 1, 1)
