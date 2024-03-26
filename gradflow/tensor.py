@@ -100,8 +100,8 @@ class Tensor:
 
     return out
 
-  def sum(self, dim: Optional[int] = None) -> Tensor:
-    out = Tensor(self.data.sum(dim), self.requires_grad)
+  def sum(self, dim: Optional[int] = None, keepdims: bool = False) -> Tensor:
+    out = Tensor(self.data.sum(dim, keepdims=keepdims), self.requires_grad)
     out.grad_fn = SumBackward([self], [self.grad_fn], dim)
 
     return out

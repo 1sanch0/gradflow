@@ -45,23 +45,30 @@ class NoneFn(AutogradFunction):
   def backward(self, grad: np.ndarray) -> None:
     pass
 
-# TODO: any shape
-def unbroadcast(x: Tensor, shape: tuple[int]) -> Tensor:
-  # This only works for 2d matrices. Feel free to pull request
+# General Broadcasting Rules (https://numpy.org/doc/stable/user/basics.broadcasting.html#general-broadcasting-rules)
+# It starts with the trailing (i.e. rightmost) dimension and works its way left.
+# Two dimensions are compatible when
+# + they are equal, or
+# + one of them is 1.
+def unbroadcast(x: np.ndarray, shape: tuple[int]) -> np.ndarray:
   if (x.shape == shape):
     return x
 
   if (shape == (1,) or shape == ()):
     return x.sum()
 
-  expanded_dim = np.argmax(
-    0 != (np.array(shape) - np.array(np.broadcast_shapes(shape, x.shape)))
-  )
+  # Missing dimensions are assumed to have size one.
+  shape_ = (1,) * (len(x.shape) - len(shape)) + shape
 
-  # Again, feel free to pull request to fix this.
-  keepdims = expanded_dim == len(shape) - 1
-  
-  return x.sum(expanded_dim, keepdims=keepdims)
+  expanded_dims = np.where(np.array(x.shape) != np.array(shape_))[0]
+
+  # print("X shape:", x.shape)
+  # print("Shape:", shape)
+  # print("!=", np.array(shape) != np.array(x.shape))
+  # print("np.where:", np.where(np.array(x.shape) != np.array(shape)))
+  # print("Expanded dims:", expanded_dims)
+
+  return x.sum(tuple(expanded_dims)).reshape(shape)
 
 class AddBackward(BackwardFunction):
   def backward(self, grad: np.ndarray) -> None:
@@ -100,8 +107,8 @@ class SumBackward(BackwardFunction):
     self.dim = dim
 
   def backward(self, grad: np.ndarray) -> None:
-    if self.dim:
-      grad = np.expand_dims(grad, self.dim)
+    # if self.dim:
+    #   grad = np.expand_dims(grad, self.dim)
     self.next_functions[0](np.ones_like(self.ctx[0].data) * grad)
 
 class ExpBackward(BackwardFunction):

@@ -1,9 +1,7 @@
 import unittest
 from gradflow import *
-import gradflow.functions as F
 import numpy as np
 import torch
-import torch.nn as nn
 
 class TestTensor(unittest.TestCase):
   def __tensor_assert(self, tensor, grad, grad_fn, is_leaf, requires_grad):
@@ -284,7 +282,6 @@ class TestTensor(unittest.TestCase):
       ((4, 9), (36, 4)),
       ((2, 2, 2), (16, 8, 4)),
       ((3, 2, 1, 3), (6, 3, 3, 1))
-      #...
                            ]:
       b = a.as_strided(shape, strides)
       tb = ta.as_strided(shape, strides)
@@ -358,112 +355,3 @@ class TestTensor(unittest.TestCase):
     # for x in [a,b,c,d,e,f,g,h,i,j,k]:
     #   print(x.grad)
   
-#   def test_relu(self):
-#     relu = nn.ReLU()
-#     arelu = F.ReLU()
-
-#     data = np.arange(9).reshape(3, 3).astype(np.float32)
-#     a = torch.tensor(data, requires_grad=True)
-#     b = a * -2
-#     c = b.T
-#     d = relu(a + c)
-#     e = d.mean()
-#     e.backward()
-
-#     aa = Tensor(data, requires_grad=True)
-#     ab = aa * -2
-#     ac = ab.transpose()
-#     ad = arelu(aa + ac)
-#     ae = ad.mean()
-#     ae.backward()
-
-#     self.__assert_numpy_equals(a.grad.numpy(), aa.grad)
-  
-#   # def test_reductions(self):
-#   #   rnd0 = np.random.random((3, 3))
-#   #   rnd1 = np.random.random((3, 3))
-
-#   #   a = torch.tensor(rnd0, requires_grad=True)
-#   #   b = torch.tensor(rnd1, requires_grad=True)
-
-#   #   c = a / b
-#   #   c.sum().backward()
-
-#   #   aa = Tensor(rnd0, requires_grad=True)
-#   #   ab = Tensor(rnd1, requires_grad=True)
-
-#   #   ac = aa / ab
-#   #   ac.sum().backward()
-
-#   #   self.__assert_numpy_equals(a.grad.numpy(), aa.grad)
-#   #   self.__assert_numpy_equals(b.grad.numpy(), ab.grad)
-
-#   #   a = torch.tensor(rnd0, requires_grad=True)
-#   #   b = torch.tensor(rnd1, requires_grad=True)
-
-#   #   c = a / b
-#   #   c.mean().backward()
-
-#   #   aa = Tensor(rnd0, requires_grad=True)
-#   #   ab = Tensor(rnd1, requires_grad=True)
-
-#   #   ac = aa / ab
-#   #   ac.mean().backward()
-
-#   #   print(a.mean(), aa.mean())
-#   #   self.__assert_numpy_equals(a.grad.numpy(), aa.grad)
-#   #   self.__assert_numpy_equals(b.grad.numpy(), ab.grad)
-  
-#   def test_loss(self):
-#     mse = nn.MSELoss()
-
-#     a = torch.tensor([1, 0.4, -12, -0.314], requires_grad=True)
-#     b = torch.tensor([0.001, 2, 10, 3.14], requires_grad=True)
-
-#     z = mse(a, b)
-#     z.backward()
-  
-#     mmse = F.MSELoss()
-
-#     ma = Tensor([1, 0.4, -12, -0.314], requires_grad=True)
-#     mb = Tensor([0.001, 2, 10, 3.14], requires_grad=True)
-
-#     mz = mmse(ma, mb)
-#     mz.backward()
-
-#     self.__assert_numpy_equals(a.grad.numpy(), ma.grad)
-#     self.__assert_numpy_equals(b.grad.numpy(), mb.grad)
-  
-#   # def test_classification_loss(self):
-#   #   preds = np.random.randn(3, 5)
-#   #   target = np.array([0, 1, 5]) # 0 <= x < C = 5
-
-#   #   print(f"{preds=}")
-#   #   print(f"{target=}")
-
-#   #   tpreds = torch.tensor(preds, requires_grad=True)
-#   #   ttarget = torch.tensor(target)
-#   #   gpreds = Tensor(preds, requires_grad=True)
-#   #   gtarget = Tensor(target)
-
-#   #   tlogsoft = nn.LogSoftmax(dim=-1)
-#   #   glogsoft = F.LogSoftmax(dim=-1)
-
-#   #   tlogpreds = tlogsoft(tpreds)
-#   #   glogpreds = glogsoft(gpreds)
-
-#   #   print(f"{tlogpreds=}")
-#   #   print(f"{glogpreds=}")
-
-#   #   tcriterion = nn.NLLLoss()
-#   #   gcriterion = F.NLLLoss()
-#   #   # TODO: crossentropyloss
-
-#   #   tloss = tcriterion(tlogpreds, ttarget)
-#   #   gloss = gcriterion(glogpreds, gtarget)
-
-#   #   print(f"{tloss=}")
-#   #   print(f"{gloss=}")
-
-# if __name__ == "__main__":
-#   unittest.main()

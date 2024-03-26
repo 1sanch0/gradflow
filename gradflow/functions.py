@@ -34,6 +34,7 @@ class ReLU(Function):
   
     return out
 
+import sys
 class Softmax(Function):
   def __init__(self, dim: Optional[int] = None):
     self.dim = dim
@@ -41,20 +42,23 @@ class Softmax(Function):
   def forward(self, x: Tensor) -> Tensor:
     # shifts the values of x so that the highest number is 0, prevents numerical instability
     # see https://cs231n.github.io/linear-classify/#softmax-classifier
-    x = x - np.max(x.data) 
-    return x.exp() / x.exp().sum(self.dim)
+    x.data = x.data - np.max(x.data)#, axis=self.dim, keepdims=True)
+    x_e = x.exp()
+    return x_e / x_e.sum(self.dim, keepdims=True)
 
 class LogSoftmax(Function):
   def __init__(self, dim: Optional[int] = None):
     self.dim = dim
   
   def forward(self, x: Tensor) -> Tensor:
-    x = x - np.max(x.data) 
-    return x - x.exp().sum(self.dim).log().unsqueeze(-1)
+    x.data = x.data - np.max(x.data)
+    return x - x.exp().sum(self.dim, keepdims=True).log()#.unsqueeze(-1)
 
 class Tanh(Function):
   def forward(self, x: Tensor) -> Tensor:
-    return (x.exp() - (-x).exp()) / (x.exp() + (-x).exp())
+    x_exp = x.exp()
+    x_neg_exp = (-x).exp()
+    return (x_exp - x_neg_exp) / (x_exp + x_neg_exp)
 
 # Loss functions
 
@@ -64,7 +68,7 @@ class MSELoss(Function):
 
 class BCELoss(Function):
   def forward(self, input: Tensor, target: Tensor) -> Tensor:
-    return (-(target * input.log() + (1 - target) * (1 - input).log())).mean() #.sum()
+    return (-(target * input.log() + (1 - target) * (1 - input).log())).mean()
 
 class NLLLoss(Function):
   # The negative log likelihood loss
