@@ -96,30 +96,57 @@ class TestTensor(unittest.TestCase):
     self.__assert_numpy_equals(tb.grad.numpy(), b.grad)
 
   def test_matmul(self):
-    # TODO: test more dimensions
-    r1 = np.random.random((4, 9)).astype(np.float32)
-    r2 = np.random.random((9, 4)).astype(np.float32)
+    dims = [((4, 9), (9, 4)),
 
-    a = Tensor(r1, requires_grad=True)
-    b = Tensor(r2, requires_grad=True)
+            ((1,), (1,)),
+            ((6,), (6,)),
 
-    ta = torch.tensor(r1, requires_grad=True)
-    tb = torch.tensor(r2, requires_grad=True)
+            ((6,), (6, 2)),
+            ((3, 4), (4,)),
 
-    c = a @ b
-    tc = ta @ tb
 
-    self.__tensor_assert(c, None, MatmulBackward, False, True)
-    self.__assert_numpy_equals(tc.detach().numpy(), c.data)
+            ((3, 4, 7), (3, 7, 1)),
+            ((3, 4, 7), (7, 1)),
+            ((3, 4, 7), (7,)),
+            ((4, 7), (3, 7, 1)),
+            ((7), (3, 7, 1)),
 
-    d = c.mean()
-    td = tc.mean()
+            ((9, 4, 7, 4), (9, 4, 4, 3)),
+            ((9, 4, 7, 4), (4, 4, 3)),
+            ((9, 4, 7, 4), (4, 3)),
+            ((9, 4, 7, 4), (4)),
 
-    d.backward()
-    td.backward()
+            ((9, 4, 7, 4), (9, 4, 4, 3)),
+            ((4, 7, 4), (9, 4, 4, 3)),
+            ((7, 4), (9, 4, 4, 3)),
+            ((4), (9, 4, 4, 3)),
+            ]
 
-    self.__assert_numpy_equals(ta.grad.numpy(), a.grad)
-    self.__assert_numpy_equals(tb.grad.numpy(), b.grad)
+    for d1, d2 in dims:
+      print(f"Testing {d1} @ {d2}")
+      r1 = np.random.random(d1).astype(np.float32)
+      r2 = np.random.random(d2).astype(np.float32)
+
+      a = Tensor(r1, requires_grad=True)
+      b = Tensor(r2, requires_grad=True)
+
+      ta = torch.tensor(r1, requires_grad=True)
+      tb = torch.tensor(r2, requires_grad=True)
+
+      tc = ta @ tb
+      c = a @ b
+
+      self.__tensor_assert(c, None, MatmulBackward, False, True)
+      self.__assert_numpy_equals(tc.detach().numpy(), c.data)
+
+      d = c.mean()
+      td = tc.mean()
+
+      td.backward()
+      d.backward()
+
+      self.__assert_numpy_equals(ta.grad.numpy(), a.grad)
+      self.__assert_numpy_equals(tb.grad.numpy(), b.grad)
   
   def test_transpose(self):
     r = np.random.random((9, 1, 23, 4, 10, 16))

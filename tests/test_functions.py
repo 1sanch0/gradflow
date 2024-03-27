@@ -162,32 +162,31 @@ class TestFunctions(unittest.TestCase):
       self.__assert_numpy_equals(ta.grad.numpy(), a.grad)
 
   def test_conv2d(self):
-    pass
-    # r = np.random.random((3, 3, 10, 10)).astype(np.float32)
+    r = np.random.random((4, 3, 16, 16)).astype(np.float32)
 
-    # a = Tensor(r, requires_grad=True)
-    # ta = torch.tensor(r, requires_grad=True)
+    a = Tensor(r, requires_grad=True)
+    ta = torch.tensor(r, requires_grad=True)
 
-    # for bias in [False]:
-    #   conv = F.Conv2d(3, 3, 3, bias=bias)
-    #   tconv = nn.Conv2d(3, 3, 3, bias=bias)
+    for bias in [False, True]:
+      conv = F.Conv2d(3, 3, 3, bias=bias)
+      tconv = nn.Conv2d(3, 3, 3, bias=bias)
 
-    #   conv.weight.data = tconv.weight.detach().numpy()
-    #   if bias:
-    #     conv.bias.data = tconv.bias.detach().numpy()
+      conv.weight.data = tconv.weight.detach().numpy()
+      if bias:
+        conv.bias.data = tconv.bias.detach().numpy()
 
-    #   b = conv(a)
-    #   tb = tconv(ta)
+      b = conv(a)
+      tb = tconv(ta)
 
-    #   self.__assert_numpy_equals(tb.detach().numpy(), b.data)
+      self.__assert_numpy_equals(tb.detach().numpy(), b.data)
 
-    #   o = b.sum()
-    #   to = tb.sum()
+      o = b.sum()
+      to = tb.sum()
 
-    #   o.backward()
-    #   to.backward()
+      o.backward()
+      to.backward()
 
-    #   self.__assert_numpy_equals(ta.grad.numpy(), a.grad)
+      self.__assert_numpy_equals(ta.grad.numpy(), a.grad)
 
   def test_maxpool2d(self):
     pass

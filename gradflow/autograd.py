@@ -62,12 +62,6 @@ def unbroadcast(x: np.ndarray, shape: tuple[int]) -> np.ndarray:
 
   expanded_dims = np.where(np.array(x.shape) != np.array(shape_))[0]
 
-  # print("X shape:", x.shape)
-  # print("Shape:", shape)
-  # print("!=", np.array(shape) != np.array(x.shape))
-  # print("np.where:", np.where(np.array(x.shape) != np.array(shape)))
-  # print("Expanded dims:", expanded_dims)
-
   return x.sum(tuple(expanded_dims)).reshape(shape)
 
 class AddBackward(BackwardFunction):
@@ -82,8 +76,75 @@ class MulBackward(BackwardFunction):
 
 class MatmulBackward(BackwardFunction):
   def backward(self, grad: np.ndarray) -> None:
-    self.next_functions[0](grad @ self.ctx[1].data.T)
-    self.next_functions[1](self.ctx[0].data.T @ grad)
+    a: np.array = self.ctx[0].data
+    b: np.array = self.ctx[1].data
+
+    # print(f"\nMatmulBackward: {a.shape} @ {b.shape} with grad: {grad.shape}")
+
+    a_prepended, b_appended = False, False
+    a_broadcasted_dims, b_broadcasted_dims = None, None
+    if not (a.shape == b.shape and a.ndim > 1): # Broadcasting https://numpy.org/doc/stable/reference/generated/numpy.matmul.html
+      if (a.ndim == 1):
+        a_prepended = True
+        a = a.reshape(1, -1)
+        # print("a_dims == 1, a prepended with 1")
+      
+      if (b.ndim == 1):
+        b_appended = True
+        b = b.reshape(-1, 1)
+        # print("b_dims == 1, b appended with 1")
+      
+      if (a.ndim > b.ndim):
+        n = a.ndim - b.ndim
+        b_broadcasted_dims = tuple(range(n))
+        b = b.reshape((1,)*n + b.shape)
+        # print(f"a_dims > b_dims, b broadcasted {b_broadcasted_dims}")
+      
+      if (b.ndim > a.ndim):
+        n = b.ndim - a.ndim
+        a_broadcasted_dims = tuple(range(n))
+        a = a.reshape((1,)*n + a.shape)
+        # print(f"b_dims > a_dims, a broadcasted {a_broadcasted_dims}")
+
+    # print(f"After broadcast: {a.shape} @ {b.shape} with grad: {grad.shape}")
+
+    a_T_dims, b_T_dims = list(range(a.ndim)), list(range(b.ndim))
+    a_T_dims[-2], a_T_dims[-1] = a_T_dims[-1], a_T_dims[-2]
+    b_T_dims[-2], b_T_dims[-1] = b_T_dims[-1], b_T_dims[-2]
+
+    a_T, b_T = a.transpose(a_T_dims), b.transpose(b_T_dims)
+
+    shape = (np.zeros_like(a) @ np.zeros_like(b)).shape # TODO: Find a better way to get the shape of the result
+    grad = grad.reshape(shape)
+    # print(f"R: {(a@b).shape}")
+    # print(f"Grad_0: {grad.shape} @ {b_T.shape}")
+    # print(f"Grad_1: {a_T.shape} @ {grad.shape}")
+
+    grad_0 = grad @ b_T
+    grad_1 = a_T @ grad
+
+    # print(f"Grad_0: {grad_0.shape}")
+    # print(f"Grad_1: {grad_1.shape}")
+    # print(f"ctx[0]: {self.ctx[0].shape}")
+    # print(f"ctx[1]: {self.ctx[1].shape}")
+
+    if (a_prepended):
+      grad_0 = grad_0.sum(-2)
+    
+    if (b_appended):
+      grad_1 = grad_1.sum(-1)
+
+    if (a_broadcasted_dims):
+      grad_0 = grad_0.sum(a_broadcasted_dims)
+
+    if (b_broadcasted_dims):
+      grad_1 = grad_1.sum(b_broadcasted_dims)
+
+    # print(f"ubc Grad_0: {grad_0.shape}")
+    # print(f"ubc Grad_1: {grad_1.shape}")
+
+    self.next_functions[0](grad_0)
+    self.next_functions[1](grad_1)
 
 class TransposeBackward(BackwardFunction):
   # ctx[0] = dim

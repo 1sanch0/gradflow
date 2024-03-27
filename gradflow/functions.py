@@ -121,6 +121,20 @@ class Linear(ParameterizedFunction):
     
     return out
 
+def im2col(x: Tensor, kernel_size: tuple[int, int], strides: tuple[int, int]) -> Tensor:
+  bs, c, h, w = x.shape
+  kh, kw = kernel_size
+  sh, sw = strides
+
+  out_h = (h - kh) // sh + 1
+  out_w = (w - kw) // sw + 1
+
+  patches = x.as_strided((bs, c, out_h, out_w, kh, kw),
+                         (c*h*w, h*w, sh*w, sw, w, 1)) \
+             .transpose((0, 1, 4, 5, 2, 3))
+  
+  return patches.reshape(bs, c * kh * kw, out_h * out_w)
+
 class Conv2d(ParameterizedFunction):
   def __init__(self, in_features: int, out_features: int, kernel_size: Union[tuple[int, int], int], stride: Union[tuple[int, int], int] = 1, padding: str = "valid", bias: bool = True):
     if isinstance(kernel_size, int):
@@ -138,7 +152,6 @@ class Conv2d(ParameterizedFunction):
 
     self.weight = Tensor(np.sqrt(2.0 / out_features) * np.random.randn(out_features, in_features, *kernel_size), requires_grad=True)
     if bias:
-      raise NotImplementedError("Convolution's bias has not been implemented yet")
       self.bias = Tensor(np.sqrt(2.0 / out_features) * np.random.randn(out_features), requires_grad=True)
   
   def parameters(self) -> list[Tensor]:
@@ -147,29 +160,23 @@ class Conv2d(ParameterizedFunction):
     return params
 
   def forward(self, x: Tensor) -> Tensor:
-    # TODO: padding
-    bs, c, w, h = x.shape
-    kw, kh = self.kernel_size
-    sw, sh = self.stride
+    # See examples/how_to_conv.ipynb for more info about this approach
+    bs, c, h, w = x.shape
+    kh, kw = self.kernel_size
+    sh, sw = self.stride
 
-    new_w = (w-kw) // sw + 1
-    new_h = (h-kh) // sh + 1
+    out_h = (h - kh) // sh + 1
+    out_w = (w - kw) // sw + 1
 
-    if (c != self.in_features):
-      raise ValueError("Weights expects input to have " + \
-                      f"{self.in_features} channels but got {c} instead.")
+    if c != self.in_features:
+      raise ValueError(f"Expected {self.in_features} channels, but got {c}")
 
-    # im2col, check out: https://leonardoaraujosantos.gitbook.io/artificial-inteligence/machine_learning/deep_learning/convolution_layer/making_faster
-    col =  x.as_strided((bs, c, kw, kh, new_w, new_h),
-                        (c*h*w, h*w, w, 1, w*sw, sh)) \
-                        .reshape(bs, c*kw*kh, new_w*new_h)
+    x_col = im2col(x, self.kernel_size, self.stride)
+    x_col.data = np.ascontiguousarray(x_col.data)
 
-    w = self.weight.reshape(self.in_features * kw * kh, self.out_features)#.transpose()
-    print(col.shape)
-    print(w.shape)
-    out = col @ w
+    weight_col = self.weight.reshape(self.out_features, -1)
 
-    out = out.reshape(bs, self.out_features, new_w, new_h)
+    out = (weight_col @ x_col).reshape(bs, self.out_features, out_h, out_w)
 
     if self._bias:
       out = out + self.bias.reshape(1, -1, 1, 1)
