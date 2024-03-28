@@ -189,16 +189,34 @@ class TestFunctions(unittest.TestCase):
       self.__assert_numpy_equals(ta.grad.numpy(), a.grad)
 
   def test_maxpool2d(self):
-    pass
-  
-  
-  # Future tests
+    maxpool = F.MaxPool2d(2, 2)
+    fmaxpool = nn.MaxPool2d(2, 2)
+
+    r = np.random.random((4, 3, 16, 16)).astype(np.float32)
+
+    a = Tensor(r, requires_grad=True)
+    ta = torch.tensor(r, requires_grad=True)
+
+    tb = fmaxpool(ta)
+    b = maxpool(a)
+
+    self.__assert_numpy_equals(tb.detach().numpy(), b.data)
+
+    o = b.sum()
+    to = tb.sum()
+
+    o.backward()
+    to.backward()
+
+    self.__assert_numpy_equals(ta.grad.numpy(), a.grad)
 
   def test_avgpool2d(self):
+    # TODO
     pass
 
   def test_batchnorm2d(self):
     pass
-
+  
   def test_attention(self):
+    # TODO
     pass

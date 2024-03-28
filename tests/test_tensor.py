@@ -235,6 +235,26 @@ class TestTensor(unittest.TestCase):
 
       self.__assert_numpy_equals(ta.grad.numpy(), a.grad)
 
+  def test_abs(self):
+    r = np.random.random((10, 4, 1, 9, 4)).astype(np.float32)
+
+    a = Tensor(r, requires_grad=True)
+    ta = torch.tensor(r, requires_grad=True)
+
+    b = a.abs()
+    tb = ta.abs()
+
+    self.__tensor_assert(b, None, AbsBackward, False, True)
+    self.__assert_numpy_equals(tb.detach().numpy(), b.data)
+
+    c = b.sum()
+    tc = tb.sum()
+
+    c.backward()
+    tc.backward()
+
+    self.__assert_numpy_equals(ta.grad.numpy(), a.grad)
+
   def test_squeeze(self):
     r = np.random.random((1, 4, 1, 9, 4, 1)).astype(np.float32)
 

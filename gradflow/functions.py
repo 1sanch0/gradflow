@@ -34,7 +34,6 @@ class ReLU(Function):
   
     return out
 
-import sys
 class Softmax(Function):
   def __init__(self, dim: Optional[int] = None):
     self.dim = dim
@@ -184,22 +183,26 @@ class Conv2d(ParameterizedFunction):
     return out
 
 class MaxPool2d(Function):
-  def __init__(self, kernel_size: Union[tuple[int, int], int], stride: int):
+  def __init__(self, kernel_size: Union[tuple[int, int], int], stride: Union[tuple[int, int], int] = 1):
     if isinstance(kernel_size, int):
       kernel_size = (kernel_size,) * 2
+    
+    if isinstance(stride, int):
+      stride = (stride,) * 2
 
     self.kernel_size = kernel_size
     self.stride = stride
   
   def forward(self, x: Tensor) -> Tensor:
     # TODO: padding
-    bs, c, w, h = x.shape
-    kw, kh = self.kernel_size
+    bs, c, h, w = x.shape
+    kh, kw = self.kernel_size
+    sh, sw = self.stride
 
-    new_w = (w - kw) // self.stride + 1
-    new_h = (h - kh) // self.stride + 1
+    out_h = (h - kh) // sh + 1
+    out_w = (w - kw) // sw + 1
 
-    patches = x.as_strided((bs, c, new_w, new_h, kw, kh),
-                           (c*w*h, w*h, self.stride*h, self.stride, h, 1))
-  
+    patches = x.as_strided((bs, c, out_h, out_w, kh, kw),
+                           (c*h*w, h*w, sh*w, sw, w, 1))
+
     return patches.max((-2, -1))

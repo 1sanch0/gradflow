@@ -185,6 +185,10 @@ class PowBackward(BackwardFunction):
   def backward(self, grad: np.ndarray) -> None:
     self.next_functions[0](self.ctx[1] * np.power(self.ctx[0].data, self.ctx[1] - 1) * grad)
 
+class AbsBackward(BackwardFunction):
+  def backward(self, grad: np.ndarray) -> None:
+    self.next_functions[0](np.sign(self.ctx[0].data) * grad)
+
 class ReLUBackward(BackwardFunction):
   def backward(self, grad: np.ndarray) -> None:
     self.next_functions[0]((self.ctx[0].data > 0) * grad)

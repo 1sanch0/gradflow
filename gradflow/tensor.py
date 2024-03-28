@@ -106,8 +106,8 @@ class Tensor:
 
     return out
 
-  def mean(self, dim: Optional[int] = None) -> Tensor:
-    return self.sum(dim) / self.data.size
+  def mean(self, dim: Optional[int] = None, keepdims: bool = False) -> Tensor:
+    return self.sum(dim, keepdims) / self.data.size
   
   def exp(self) -> Tensor:
     out = Tensor(np.exp(self.data), self.requires_grad)
@@ -127,6 +127,12 @@ class Tensor:
 
     out = Tensor(np.power(self.data, rhs), self.requires_grad)
     out.grad_fn = PowBackward([self, rhs], [self.grad_fn])
+
+    return out
+  
+  def abs(self) -> Tensor:
+    out = Tensor(np.abs(self.data), self.requires_grad)
+    out.grad_fn = AbsBackward([self], [self.grad_fn])
 
     return out
   
