@@ -94,7 +94,6 @@ class Tensor:
     return out
 
   def max(self, dim: Optional[tuple[int, ...]] = None) -> Tensor:
-    # self.data = self.data.astype(np.float64)
     out = Tensor(self.data.max(dim), self.requires_grad)
     out.grad_fn = MaxBackward([self.data, out.data, dim], [self.grad_fn])
 
@@ -107,7 +106,23 @@ class Tensor:
     return out
 
   def mean(self, dim: Optional[int] = None, keepdims: bool = False) -> Tensor:
-    return self.sum(dim, keepdims) / self.data.size
+    if dim is None:
+      n = self.data.size
+    else:
+      dim = (dim,) if isinstance(dim, int) else dim
+      n = np.prod([self.shape[i] for i in dim])
+
+    return self.sum(dim, keepdims) / n
+  
+  def var(self, dim: Optional[int] = None, correction: int = 1, keepdims: bool = False) -> Tensor:
+    if dim is None:
+      n = self.data.size
+    else:
+      dim = (dim,) if isinstance(dim, int) else dim
+      n = np.prod([self.shape[i] for i in dim])
+
+    mean = self.mean(dim, keepdims=True)
+    return ((self - mean) ** 2).sum(dim, keepdims) / max(0, n - correction)
   
   def exp(self) -> Tensor:
     out = Tensor(np.exp(self.data), self.requires_grad)

@@ -91,10 +91,10 @@ class NLLLoss(Function):
 # Layers
 
 class Dropout(Function):
-  # Should be applied ONLY during training
   def __init__(self, p: float = 0.5):
     self.p = p
 
+  # TODO: train global variable
   def forward(self, x: Tensor) -> Tensor:
     mask = (np.random.randn(*x.shape) < self.p) / (1-self.p)
     return x * mask
@@ -206,3 +206,38 @@ class MaxPool2d(Function):
                            (c*h*w, h*w, sh*w, sw, w, 1))
 
     return patches.max((-2, -1))
+  
+class BatchNorm2d(ParameterizedFunction):
+  def __init__(self, num_features: int, eps: float = 1e-5, momentum: float = 0.1, affine: bool = True, track_running_stats: bool = True):
+    self.num_features = num_features
+    self.eps = eps
+    self.momentum = momentum
+    self.affine = affine
+    self.track_running_stats = track_running_stats
+
+    self.weight = Tensor(np.ones(num_features), requires_grad=True)
+    self.bias = Tensor(np.zeros(num_features), requires_grad=True)
+
+    self.running_mean = Tensor(np.zeros(num_features), requires_grad=False)
+    self.running_var = Tensor(np.ones(num_features), requires_grad=False)
+  
+  def parameters(self) -> list[Tensor]:
+    return [self.weight, self.bias]
+
+  # TODO: Global variable train
+  def forward(self, x: Tensor, train: bool = True) -> Tensor:
+    if train:
+      mean = x.mean((0, 2, 3))
+      var = x.var((0, 2, 3), correction=0)
+
+      if self.track_running_stats:
+        self.running_mean = (1 - self.momentum) * self.running_mean + (self.momentum) * mean
+        self.running_var = (1 - self.momentum) * self.running_var + (self.momentum) * x.var((0, 2, 3), correction=1)
+    else:
+      mean = self.running_mean
+      var = self.running_var
+
+    x_hat = (x - mean.reshape(1, -1, 1, 1)) / (var.reshape(1, -1, 1, 1) + self.eps) ** 0.5
+    if self.affine:
+      return self.weight.reshape(1, -1, 1, 1) * x_hat + self.bias.reshape(1, -1, 1, 1)
+    return x_hat

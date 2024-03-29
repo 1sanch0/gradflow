@@ -27,7 +27,7 @@ class TestTensor(unittest.TestCase):
     a = Tensor(r, requires_grad=True)
     ta = torch.tensor(r, requires_grad=True)
 
-    for dim in [None, 0, 1, 2, 3]:
+    for dim in [None, 0, 1, 2, 3, (0, 1), (1, 2), (2, 3), (0, 1, 2), (0, 1, 2, 3)]:
       o = a.sum(dim)
       to = ta.sum(dim)
       self.__tensor_assert(o, None, SumBackward, False, True)
@@ -41,7 +41,44 @@ class TestTensor(unittest.TestCase):
 
     self.__assert_numpy_equals(ta.grad.numpy(), a.grad)    
 
-  # mean should work fine if sum does
+  def test_mean(self):
+    r = np.random.random((3, 2, 1, 3)).astype(np.float32)
+
+    a = Tensor(r, requires_grad=True)
+    ta = torch.tensor(r, requires_grad=True)
+
+    for dim in [None, 0, 1, 2, 3, (0, 1), (1, 2), (2, 3), (0, 1, 2), (0, 1, 2, 3)]:
+      o = a.mean(dim)
+      to = ta.mean(dim)
+      self.__assert_numpy_equals(to.detach().numpy(), o.data)
+
+    o = a.mean()
+    to = ta.mean()
+
+    o.backward()
+    to.backward()
+
+    self.__assert_numpy_equals(ta.grad.numpy(), a.grad)
+
+  def test_var(self):
+    r = np.random.random((3, 2, 1, 3)).astype(np.float32)
+
+    a = Tensor(r, requires_grad=True)
+    ta = torch.tensor(r, requires_grad=True)
+
+    for correction in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:
+      for dim in [None, 0, 1, 3, (0, 1), (1, 2), (2, 3), (0, 1, 2), (0, 1, 2, 3)]:
+        to = ta.var(dim, correction=1)
+        o = a.var(dim, correction=1)
+        self.__assert_numpy_equals(to.detach().numpy(), o.data)
+
+      o = a.var(correction=correction)
+      to = ta.var(correction=correction)
+
+      o.backward()
+      to.backward()
+
+      self.__assert_numpy_equals(ta.grad.numpy(), a.grad)
 
   def test_add(self):
     r1 = np.random.random((10, 4, 1, 9, 4)).astype(np.float32)

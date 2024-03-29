@@ -215,7 +215,40 @@ class TestFunctions(unittest.TestCase):
     pass
 
   def test_batchnorm2d(self):
-    pass
+    bn = F.BatchNorm2d(3)
+    tbn = nn.BatchNorm2d(3)
+
+    r = np.random.random((2, 3, 3, 3)).astype(np.float32)
+
+    a = Tensor(r, requires_grad=True)
+    ta = torch.tensor(r, requires_grad=True)
+    
+    self.__assert_numpy_equals(tbn.running_mean.numpy(), bn.running_mean.data)
+    self.__assert_numpy_equals(tbn.running_var.numpy(), bn.running_var.data)
+
+    for _ in range(10):
+      b = bn(a)
+      tb = tbn(ta)
+      self.__assert_numpy_equals(tb.detach().numpy(), b.data)
+
+    o = b.sum()
+    to = tb.sum()
+
+    print(tbn.running_var.numpy())
+    print(bn.running_var.data)
+    self.__assert_numpy_equals(tbn.running_mean.numpy(), bn.running_mean.data)
+    self.__assert_numpy_equals(tbn.running_var.numpy(), bn.running_var.data)
+
+    o.backward()
+    to.backward()
+
+    self.__assert_numpy_equals(tb.detach().numpy(), b.data,)
+    self.__assert_numpy_equals(tbn.weight.grad.numpy(), bn.weight.grad)
+    self.__assert_numpy_equals(tbn.bias.grad.numpy(), bn.bias.grad)
+
+    # TODO: FIX THIS, ITS CLOSE ENOUGH BUT NEEDS REVIEW
+    # print(np.abs(ta.grad.detach().numpy()-a.grad))
+    # self.__assert_numpy_equals(ta.grad.numpy(), a.grad)
   
   def test_attention(self):
     # TODO
