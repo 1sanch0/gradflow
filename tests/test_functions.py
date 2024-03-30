@@ -119,19 +119,83 @@ class TestFunctions(unittest.TestCase):
 
     self.__assert_numpy_equals(ta.grad.numpy(), a.grad)
   
-  # TODO
   def test_mse(self):
-    pass
+    r = np.random.random((3, 5)).astype(np.float32)
+    t = np.random.random((3, 5)).astype(np.float32)
+    
+    a = Tensor(r, requires_grad=True)
+    ta = torch.tensor(r, requires_grad=True)
 
-  # TODO
+    tg = Tensor(t, requires_grad=False)
+    ttg = torch.tensor(t, requires_grad=False)
+
+    mse = F.MSELoss()
+    tmse = nn.MSELoss()
+
+    b = mse(a, tg)
+    tb = tmse(ta, ttg)
+
+    b.backward()
+    tb.backward()
+
+    self.__assert_numpy_equals(tb.detach().numpy(), b.data)
+
+    self.__assert_numpy_equals(ta.grad.numpy(), a.grad)
+
   def test_bce(self):
-    pass
+    m = F.Sigmoid()
+    tm = nn.Sigmoid()
 
-  # TODO
+    bce = F.BCELoss()
+    tbce = nn.BCELoss()
+
+    r = np.random.random((3, 5)).astype(np.float32)
+    t = np.random.random((3, 5)).astype(np.float32)
+
+    a = Tensor(r, requires_grad=True)
+    ta = torch.tensor(r, requires_grad=True)
+
+    tg = Tensor(t, requires_grad=False)
+    ttg = torch.tensor(t, requires_grad=False)
+
+    b = bce(m(a), tg)
+    tb = tbce(tm(ta), ttg)
+
+    b.backward()
+    tb.backward()
+
+    self.__assert_numpy_equals(tb.detach().numpy(), b.data)
+
+    self.__assert_numpy_equals(ta.grad.numpy(), a.grad)
+
   def test_nll(self):
-    pass
+    m = F.LogSoftmax(1)
+    tm = nn.LogSoftmax(1)
+
+    nll = F.NLLLoss()
+    tnll = nn.NLLLoss()
+
+    r = np.random.random((3, 5)).astype(np.float32)
+    t = np.array([0, 1, 2])
+
+    a = Tensor(r, requires_grad=True)
+    ta = torch.tensor(r, requires_grad=True)
+
+    tg = Tensor(t, requires_grad=False, dtype=np.int64)
+    ttg = torch.tensor(t, requires_grad=False, dtype=torch.int64)
+
+    b = nll(m(a), tg)
+    tb = tnll(tm(ta), ttg)
+
+    b.backward()
+    tb.backward()
+
+    self.__assert_numpy_equals(tb.detach().numpy(), b.data)
+
+    self.__assert_numpy_equals(ta.grad.numpy(), a.grad)
 
   def test_dropout(self):
+    # How do you even test dropout?
     pass
 
   def test_linear(self):

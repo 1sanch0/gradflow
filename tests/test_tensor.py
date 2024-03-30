@@ -105,8 +105,6 @@ class TestTensor(unittest.TestCase):
     self.__assert_numpy_equals(ta.grad.numpy(), a.grad)
     self.__assert_numpy_equals(tb.grad.numpy(), b.grad)
 
-    # TODO test broadcast
-
   def test_mul(self):
     r1 = np.random.random((10, 4, 4, 1, 9, 4)).astype(np.float32)
     r2 = np.random.random((10, 4, 4, 1, 9, 4)).astype(np.float32)
