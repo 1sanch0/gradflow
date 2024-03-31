@@ -206,8 +206,25 @@ class TestTensor(unittest.TestCase):
       self.__assert_numpy_equals(ta.grad.numpy(), a.grad)
 
   def test_max(self):
-    # TODO
-    pass
+    r = np.random.random((10, 4, 1, 9, 4)).astype(np.float32)
+
+    a = Tensor(r, requires_grad=True)
+    ta = torch.tensor(r, requires_grad=True)
+
+    for dim in [0, 1, 2, 3, 4]:
+      b = a.max(dim)
+      tb = ta.max(dim)
+
+      self.__assert_numpy_equals(tb[0].detach().numpy(), b.data)
+
+      c = b.sum()
+      tc = tb[0].sum()
+
+      c.backward()
+      tc.backward()
+
+      self.__assert_numpy_equals(ta.grad.numpy(), a.grad)
+
 
   def test_exp(self):
     r = np.random.random((10, 4, 1, 9, 4)).astype(np.float32)

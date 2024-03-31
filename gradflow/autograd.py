@@ -87,26 +87,20 @@ class MatmulBackward(BackwardFunction):
       if (a.ndim == 1):
         a_prepended = True
         a = a.reshape(1, -1)
-        # print("a_dims == 1, a prepended with 1")
       
       if (b.ndim == 1):
         b_appended = True
         b = b.reshape(-1, 1)
-        # print("b_dims == 1, b appended with 1")
       
       if (a.ndim > b.ndim):
         n = a.ndim - b.ndim
         b_broadcasted_dims = tuple(range(n))
         b = b.reshape((1,)*n + b.shape)
-        # print(f"a_dims > b_dims, b broadcasted {b_broadcasted_dims}")
       
       if (b.ndim > a.ndim):
         n = b.ndim - a.ndim
         a_broadcasted_dims = tuple(range(n))
         a = a.reshape((1,)*n + a.shape)
-        # print(f"b_dims > a_dims, a broadcasted {a_broadcasted_dims}")
-
-    # print(f"After broadcast: {a.shape} @ {b.shape} with grad: {grad.shape}")
 
     a_T_dims, b_T_dims = list(range(a.ndim)), list(range(b.ndim))
     a_T_dims[-2], a_T_dims[-1] = a_T_dims[-1], a_T_dims[-2]
@@ -116,17 +110,9 @@ class MatmulBackward(BackwardFunction):
 
     shape = (np.zeros_like(a) @ np.zeros_like(b)).shape # TODO: Find a better way to get the shape of the result
     grad = grad.reshape(shape)
-    # print(f"R: {(a@b).shape}")
-    # print(f"Grad_0: {grad.shape} @ {b_T.shape}")
-    # print(f"Grad_1: {a_T.shape} @ {grad.shape}")
 
     grad_0 = grad @ b_T
     grad_1 = a_T @ grad
-
-    # print(f"Grad_0: {grad_0.shape}")
-    # print(f"Grad_1: {grad_1.shape}")
-    # print(f"ctx[0]: {self.ctx[0].shape}")
-    # print(f"ctx[1]: {self.ctx[1].shape}")
 
     if (a_prepended):
       grad_0 = grad_0.sum(-2)
@@ -140,9 +126,6 @@ class MatmulBackward(BackwardFunction):
     if (b_broadcasted_dims):
       grad_1 = grad_1.sum(b_broadcasted_dims)
 
-    # print(f"ubc Grad_0: {grad_0.shape}")
-    # print(f"ubc Grad_1: {grad_1.shape}")
-
     self.next_functions[0](grad_0)
     self.next_functions[1](grad_1)
 
@@ -155,11 +138,12 @@ class MaxBackward(BackwardFunction):
   # ctx[0] = patches
   # ctx[1] = maxes
   # ctx[2] = dim
+  # ctx[3] = argmaxes
   def backward(self, grad: np.ndarray) -> None:
-    indices = np.where(self.ctx[0] == np.expand_dims(self.ctx[1], self.ctx[2]))
+    indices = self.ctx[3]
     new_grad = np.zeros_like(self.ctx[0])
-    new_grad[indices] = grad.ravel()
-
+    np.put_along_axis(new_grad, indices, np.expand_dims(grad, self.ctx[2]), self.ctx[2])
+  
     self.next_functions[0](new_grad)
 
 class SumBackward(BackwardFunction):
@@ -168,8 +152,8 @@ class SumBackward(BackwardFunction):
     self.dim = dim
 
   def backward(self, grad: np.ndarray) -> None:
-    # if self.dim:
-    #   grad = np.expand_dims(grad, self.dim)
+    if self.dim and not self.ctx[1]:
+      grad = np.expand_dims(grad, self.dim)
     self.next_functions[0](np.ones_like(self.ctx[0].data) * grad)
 
 class ExpBackward(BackwardFunction):

@@ -176,7 +176,7 @@ class TestFunctions(unittest.TestCase):
     tnll = nn.NLLLoss()
 
     r = np.random.random((3, 5)).astype(np.float32)
-    t = np.array([0, 1, 2])
+    t = np.array([0, 1, 2], dtype=np.int64)
 
     a = Tensor(r, requires_grad=True)
     ta = torch.tensor(r, requires_grad=True)
@@ -257,6 +257,9 @@ class TestFunctions(unittest.TestCase):
     fmaxpool = nn.MaxPool2d(2, 2)
 
     r = np.random.random((4, 3, 16, 16)).astype(np.float32)
+    r[0, 0, 0, 0] = 100
+    r[0, 0, 0, 1] = 100
+    r[0, 0, 1, 0] = 100
 
     a = Tensor(r, requires_grad=True)
     ta = torch.tensor(r, requires_grad=True)
@@ -266,8 +269,8 @@ class TestFunctions(unittest.TestCase):
 
     self.__assert_numpy_equals(tb.detach().numpy(), b.data)
 
-    o = b.sum()
-    to = tb.sum()
+    o = b.reshape(4, -1).sum()
+    to = tb.reshape(4, -1).sum()
 
     o.backward()
     to.backward()
@@ -295,18 +298,24 @@ class TestFunctions(unittest.TestCase):
       tb = tbn(ta)
       self.__assert_numpy_equals(tb.detach().numpy(), b.data)
 
-    o = b.sum()
-    to = tb.sum()
+    c = bn(a)
+    tc = tbn(ta)
 
-    print(tbn.running_var.numpy())
-    print(bn.running_var.data)
+    d = c.reshape(2, -1)
+    td = tc.reshape(2, -1)
+    
+    o = d.sum()
+    to = td.sum()
+
+    # print(tbn.running_var.numpy())
+    # print(bn.running_var.data)
     self.__assert_numpy_equals(tbn.running_mean.numpy(), bn.running_mean.data)
     self.__assert_numpy_equals(tbn.running_var.numpy(), bn.running_var.data)
 
     o.backward()
     to.backward()
 
-    self.__assert_numpy_equals(tb.detach().numpy(), b.data,)
+    self.__assert_numpy_equals(tb.detach().numpy(), b.data)
     self.__assert_numpy_equals(tbn.weight.grad.numpy(), bn.weight.grad)
     self.__assert_numpy_equals(tbn.bias.grad.numpy(), bn.bias.grad)
 

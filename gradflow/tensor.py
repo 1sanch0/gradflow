@@ -94,14 +94,39 @@ class Tensor:
     return out
 
   def max(self, dim: Optional[tuple[int, ...]] = None) -> Tensor:
-    out = Tensor(self.data.max(dim), self.requires_grad)
-    out.grad_fn = MaxBackward([self.data, out.data, dim], [self.grad_fn])
+    if dim is None or isinstance(dim, int) or len(dim) == 1:
+      out = Tensor(self.data.max(dim), self.requires_grad)
+      out.grad_fn = MaxBackward([self.data, out.data, dim, np.argmax(self.data, dim, keepdims=True), self.shape], [self.grad_fn])
+      return out
+
+    axis = np.array(dim, dtype=int)    
+
+    axis[axis < 0] += self.data.ndim
+
+    shape = list(self.data.shape)
+
+    out = self
+    dims = []
+    for d in sorted(axis, reverse=True):
+      d = int(d)
+      if d >= len(shape):
+        raise np.exceptions.AxisError(f"axis {d} is out of bounds for array of dimension {len(shape)}")
+      
+      if d in dims:
+        raise ValueError(f"duplicate value in axis")
+
+      dims.append(d)
+      shape[d] = 1
+      out = out.max(d)
+
+    # if keepdims:
+    #   return out.reshape(shape)
 
     return out
 
   def sum(self, dim: Optional[int] = None, keepdims: bool = False) -> Tensor:
     out = Tensor(self.data.sum(dim, keepdims=keepdims), self.requires_grad)
-    out.grad_fn = SumBackward([self], [self.grad_fn], dim)
+    out.grad_fn = SumBackward([self, keepdims], [self.grad_fn], dim)
 
     return out
 
